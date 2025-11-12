@@ -51,21 +51,17 @@ const BpLogs = () => {
 
   const handleRefresh = () => {
     if (activeTab === 'all') {
-      fetchAllBps();
+      fetchTimelineLogs();
     } else if (activeTab === 'running') {
       fetchRunningBps();
-    } else if (activeTab === 'timeline') {
-      fetchTimelineLogs();
     }
   };
 
   useEffect(() => {
     if (activeTab === 'all') {
-      fetchAllBps();
+      fetchTimelineLogs();
     } else if (activeTab === 'running') {
       fetchRunningBps();
-    } else if (activeTab === 'timeline') {
-      fetchTimelineLogs();
     }
   }, [activeTab, source]);
 
@@ -89,49 +85,25 @@ const BpLogs = () => {
         />
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="all">
-              <Icon name="FolderTree" size={16} className="mr-2" />
+              <Icon name="FileText" size={16} className="mr-2" />
               Все БП
             </TabsTrigger>
             <TabsTrigger value="running">
               <Icon name="Play" size={16} className="mr-2" />
               Запущенные
             </TabsTrigger>
-            <TabsTrigger value="timeline">
-              <Icon name="FileText" size={16} className="mr-2" />
-              Логи Timeline
-            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="all" className="space-y-6">
-            <BpLogsFilters
-              source={source}
-              statusFilter={statusFilter}
-              searchQuery={searchQuery}
+            <BpLogsTimelineTab
+              timelineLogs={timelineLogs}
+              loading={loading}
+              error={error}
               autoRefresh={autoRefresh}
-              loading={loading}
-              onSourceChange={setSource}
-              onStatusFilterChange={setStatusFilter}
-              onSearchQueryChange={setSearchQuery}
-              onAutoRefreshChange={setAutoRefresh}
               onRefresh={handleRefresh}
-            />
-
-            {error && (
-              <Alert variant="destructive">
-                <Icon name="AlertCircle" size={16} />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            <BpLogsList
-              logs={allBps}
-              loading={loading}
-              selectedBp={selectedBp}
-              bpDetail={bpDetail}
-              detailLoading={detailLoading}
-              onViewDetails={handleViewDetails}
+              onAutoRefreshChange={setAutoRefresh}
             />
           </TabsContent>
 
@@ -163,17 +135,6 @@ const BpLogs = () => {
               bpDetail={bpDetail}
               detailLoading={detailLoading}
               onViewDetails={handleViewDetails}
-            />
-          </TabsContent>
-
-          <TabsContent value="timeline" className="space-y-6">
-            <BpLogsTimelineTab
-              timelineLogs={timelineLogs}
-              loading={loading}
-              error={error}
-              autoRefresh={autoRefresh}
-              onRefresh={handleRefresh}
-              onAutoRefreshChange={setAutoRefresh}
             />
           </TabsContent>
         </Tabs>
