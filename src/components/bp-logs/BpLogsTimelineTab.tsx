@@ -4,6 +4,19 @@ import Icon from '@/components/ui/icon';
 import { TimelineLog } from './bpLogsUtils';
 import { useState } from 'react';
 
+const formatLocalDateTime = (dateString: string): string => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleString('ru-RU', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+};
+
 interface BpLogsTimelineTabProps {
   timelineLogs: TimelineLog[];
   loading: boolean;
@@ -65,7 +78,7 @@ const BPLogCard = ({ log }: { log: TimelineLog }) => {
             )}
           </div>
           <div className="text-sm text-slate-500">
-            {log.CREATED && new Date(log.CREATED).toLocaleString('ru-RU')}
+            {log.CREATED && formatLocalDateTime(log.CREATED)}
           </div>
         </div>
 
@@ -94,7 +107,7 @@ const BPLogCard = ({ log }: { log: TimelineLog }) => {
                       <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
                         <td className="py-3 px-4 font-mono text-xs text-slate-600">{instance.id}</td>
                         <td className="py-3 px-4 text-slate-700">
-                          {new Date(instance.started).toLocaleString('ru-RU')}
+                          {formatLocalDateTime(instance.started)}
                         </td>
                         <td className="py-3 px-4 text-slate-700">{instance.started_by}</td>
                       </tr>
