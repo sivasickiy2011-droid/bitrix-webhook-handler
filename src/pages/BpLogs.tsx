@@ -87,12 +87,12 @@ const BpLogs = () => {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="all">
-              <Icon name="FileText" size={16} className="mr-2" />
-              Все БП
+              <Icon name="Layers" size={16} className="mr-2" />
+              Шаблоны БП
             </TabsTrigger>
             <TabsTrigger value="running">
               <Icon name="Play" size={16} className="mr-2" />
-              Запущенные
+              Активные процессы
             </TabsTrigger>
           </TabsList>
 

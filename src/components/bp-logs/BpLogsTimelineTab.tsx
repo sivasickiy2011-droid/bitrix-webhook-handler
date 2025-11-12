@@ -165,6 +165,9 @@ const BpLogsTimelineTab = ({
             Автообновление (10с)
           </label>
         </div>
+        <div className="text-sm text-slate-600">
+          Всего шаблонов: {timelineLogs.length}
+        </div>
       </div>
 
       {error && (
@@ -177,15 +180,15 @@ const BpLogsTimelineTab = ({
       {loading && timelineLogs.length === 0 ? (
         <div className="bg-white rounded-lg shadow-sm p-8 text-center">
           <Icon name="Loader2" size={32} className="animate-spin mx-auto mb-4 text-slate-400" />
-          <p className="text-slate-600">Загрузка логов...</p>
+          <p className="text-slate-600">Загрузка шаблонов бизнес-процессов...</p>
         </div>
       ) : timelineLogs.length === 0 ? (
         <div className="bg-white rounded-lg shadow-sm p-8 text-center">
           <Icon name="FileText" size={48} className="mx-auto mb-4 text-slate-300" />
-          <p className="text-slate-600">Логи Timeline не найдены</p>
+          <p className="text-slate-600">Шаблоны бизнес-процессов не найдены</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 gap-4">
           {timelineLogs.map((log) => <BPLogCard key={log.ID} log={log} />)}
         </div>
       )}
