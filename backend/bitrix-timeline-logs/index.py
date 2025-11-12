@@ -1,12 +1,14 @@
 '''
-Business: Получение списка бизнес-процессов Битрикс24 через REST API
+Business: Получение списка бизнес-процессов Битрикс24 с реальной статистикой из БД
 Args: event с httpMethod, queryStringParameters (limit)
-Returns: Список запущенных БП или шаблонов БП если нет активных экземпляров
+Returns: Список шаблонов БП с актуальной статистикой запусков из webhook_logs
 '''
 import json
 import os
 from typing import Dict, Any, List
 import requests
+import psycopg2
+from datetime import datetime
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     method: str = event.get('httpMethod', 'GET')
@@ -64,6 +66,46 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             }, ensure_ascii=False)
         }
 
+def get_db_bp_stats() -> Dict[str, Any]:
+    dsn = os.environ.get('DATABASE_URL')
+    if not dsn:
+        print("[DEBUG] DATABASE_URL не найден, статистика из БД недоступна")
+        return {}
+    
+    try:
+        conn = psycopg2.connect(dsn)
+        cursor = conn.cursor()
+        
+        # Получаем статистику по БП "Дубли компании" (webhook_type = 'check_inn')
+        cursor.execute("""
+            SELECT 
+                COUNT(*) as total_runs,
+                COUNT(CASE WHEN duplicate_found THEN 1 END) as duplicates_found,
+                MAX(created_at) as last_run,
+                MIN(created_at) as first_run
+            FROM t_p8980362_bitrix_webhook_handl.webhook_logs
+            WHERE webhook_type = 'check_inn'
+        """)
+        
+        row = cursor.fetchone()
+        
+        cursor.close()
+        conn.close()
+        
+        if row:
+            return {
+                'template_id': '4',  # ID шаблона "Дубли компании"
+                'total_runs': row[0] or 0,
+                'duplicates_found': row[1] or 0,
+                'last_run': row[2].isoformat() if row[2] else None,
+                'first_run': row[3].isoformat() if row[3] else None
+            }
+    except Exception as e:
+        print(f"[DEBUG] Ошибка получения статистики из БД: {e}")
+        return {}
+    
+    return {}
+
 def get_timeline_logs(limit: int) -> List[Dict[str, Any]]:
     webhook_url = os.environ.get('BITRIX24_BP_WEBHOOK_URL') or os.environ.get('BITRIX24_WEBHOOK_URL')
     if not webhook_url:
@@ -71,6 +113,21 @@ def get_timeline_logs(limit: int) -> List[Dict[str, Any]]:
     
     webhook_url = webhook_url.rstrip('/')
     print(f"[DEBUG] Используем webhook: {webhook_url[:50]}...")
+    
+    # Проверяем лог событий БП
+    event_log_response = requests.post(
+        f'{webhook_url}/bizproc.event.log.list',
+        json={
+            'order': {'ID': 'DESC'},
+            'select': ['ID', 'CREATED', 'NAME', 'DESCRIPTION', 'WORKFLOW_ID']
+        },
+        timeout=30
+    )
+    
+    print(f"[DEBUG] Event log API статус: {event_log_response.status_code}")
+    if event_log_response.status_code == 200:
+        event_log_data = event_log_response.json()
+        print(f"[DEBUG] Event log первые записи: {event_log_data.get('result', [])[:3] if event_log_data.get('result') else 'Пусто'}")
     
     # Получаем список шаблонов БП
     templates_response = requests.post(
@@ -90,61 +147,87 @@ def get_timeline_logs(limit: int) -> List[Dict[str, Any]]:
     templates = {t['ID']: t for t in templates_data.get('result', [])}
     print(f"[DEBUG] Получено шаблонов: {len(templates)}")
     
-    # Получаем список всех экземпляров БП (активные + завершённые)
-    instances_response = requests.post(
+    # Пробуем получить ВСЕ экземпляры без фильтров
+    all_instances_response = requests.post(
         f'{webhook_url}/bizproc.workflow.instances',
         json={
             'select': ['ID', 'MODIFIED', 'STARTED', 'STARTED_BY', 'TEMPLATE_ID', 'WORKFLOW_STATUS', 'DOCUMENT_ID'],
-            'order': {'STARTED': 'DESC'},
-            'filter': {'>STARTED_BY': 0}
+            'order': {'ID': 'DESC'}
         },
         timeout=30
     )
     
-    print(f"[DEBUG] Статус ответа instances: {instances_response.status_code}")
+    print(f"[DEBUG] Запрос ВСЕХ экземпляров: статус {all_instances_response.status_code}")
     
-    if instances_response.status_code != 200:
-        print(f"[DEBUG] Текст ответа: {instances_response.text[:500]}")
-        raise Exception(f'Ошибка запроса к API: HTTP {instances_response.status_code}')
-    
-    data = instances_response.json()
-    
-    print(f"[DEBUG] Полный ответ API: {data}")
-    
-    if 'error' in data:
-        raise Exception(f"Ошибка API Битрикс24: {data.get('error_description', 'Неизвестная ошибка')}")
-    
-    instances = data.get('result', [])
+    instances = []
+    if all_instances_response.status_code == 200:
+        all_data = all_instances_response.json()
+        print(f"[DEBUG] Ответ API: {all_data}")
+        instances = all_data.get('result', [])
+        print(f"[DEBUG] Всего найдено экземпляров БП: {len(instances)}")
+        if instances:
+            print(f"[DEBUG] Первые 3 экземпляра: {instances[:3]}")
+    else:
+        print(f"[DEBUG] Ошибка запроса: {all_instances_response.text[:500]}")
     print(f"[DEBUG] Получено экземпляров БП: {len(instances)}")
     
     if instances:
         print(f"[DEBUG] Первый экземпляр: {instances[0]}")
     
-    # Преобразуем экземпляры БП в формат для отображения
-    logs = []
+    # Получаем статистику из БД для БП "Дубли компании"
+    db_stats = get_db_bp_stats()
+    print(f"[DEBUG] Статистика из БД: {db_stats}")
     
-    if instances:
-        for instance in instances[:limit]:
-            template_id = instance.get('TEMPLATE_ID', '')
-            template = templates.get(template_id, {})
-            
+    # Считаем статистику запусков для каждого шаблона из API
+    template_stats = {}
+    for instance in instances:
+        template_id = instance.get('TEMPLATE_ID', '')
+        if template_id not in template_stats:
+            template_stats[template_id] = {
+                'total': 0,
+                'last_started': instance.get('STARTED', ''),
+                'last_status': instance.get('WORKFLOW_STATUS', ''),
+                'last_instance_id': instance.get('ID', '')
+            }
+        template_stats[template_id]['total'] += 1
+    
+    # Добавляем статистику из БД для template_id='4' ("Дубли компании")
+    if db_stats and db_stats.get('total_runs', 0) > 0:
+        template_stats[db_stats['template_id']] = {
+            'total': db_stats['total_runs'],
+            'last_started': db_stats['last_run'] or '',
+            'last_status': 'completed',
+            'last_instance_id': 'db_record'
+        }
+    
+    print(f"[DEBUG] Общая статистика по шаблонам: {template_stats}")
+    
+    # Формируем список всех шаблонов со статистикой
+    logs = []
+    for template_id, template in list(templates.items())[:limit]:
+        stats = template_stats.get(template_id)
+        
+        if stats:
+            # Шаблон с историей запусков
             log = {
-                'ID': instance.get('ID', ''),
-                'CREATED': instance.get('STARTED', instance.get('MODIFIED', '')),
-                'AUTHOR_ID': str(instance.get('STARTED_BY', '')),
+                'ID': template_id,
+                'CREATED': stats['last_started'],
+                'AUTHOR_ID': str(template.get('USER_ID', '')),
                 'SETTINGS': {
                     'TITLE': template.get('NAME', 'Бизнес-процесс'),
-                    'MESSAGE': f"Статус: {instance.get('WORKFLOW_STATUS', 'неизвестен')}",
-                    'COMMENT': f"Документ: {instance.get('DOCUMENT_ID', 'N/A')}"
+                    'MESSAGE': f"Всего запусков: {stats['total']}",
+                    'COMMENT': f"Последний запуск: {stats['last_started'][:10]} • Статус: {stats['last_status']}"
                 },
-                'ASSOCIATED_ENTITY_TYPE_ID': 'bizproc',
-                'ASSOCIATED_ENTITY_ID': template_id
+                'ASSOCIATED_ENTITY_TYPE_ID': 'bizproc_template',
+                'ASSOCIATED_ENTITY_ID': template_id,
+                'STATS': {
+                    'total_runs': stats['total'],
+                    'last_run': stats['last_started'],
+                    'has_history': True
+                }
             }
-            logs.append(log)
-    else:
-        # Если нет запущенных БП, показываем доступные шаблоны
-        print(f"[DEBUG] Нет экземпляров БП, показываем шаблоны")
-        for template_id, template in list(templates.items())[:limit]:
+        else:
+            # Шаблон без запусков
             log = {
                 'ID': f"template_{template_id}",
                 'CREATED': template.get('MODIFIED', ''),
@@ -152,12 +235,16 @@ def get_timeline_logs(limit: int) -> List[Dict[str, Any]]:
                 'SETTINGS': {
                     'TITLE': template.get('NAME', 'Шаблон БП'),
                     'MESSAGE': f"Тип: {template.get('DOCUMENT_TYPE', ['', '', 'Неизвестно'])[2]}",
-                    'COMMENT': template.get('DESCRIPTION', 'Шаблон бизнес-процесса (не запущен)')
+                    'COMMENT': template.get('DESCRIPTION', 'Этот бизнес-процесс ещё не запускался')
                 },
                 'ASSOCIATED_ENTITY_TYPE_ID': 'bizproc_template',
-                'ASSOCIATED_ENTITY_ID': template_id
+                'ASSOCIATED_ENTITY_ID': template_id,
+                'STATS': {
+                    'total_runs': 0,
+                    'has_history': False
+                }
             }
-            logs.append(log)
+        logs.append(log)
     
     print(f"[DEBUG] Сформировано логов: {len(logs)}")
     

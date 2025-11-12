@@ -65,7 +65,8 @@ const BpLogsTimelineTab = ({
       ) : (
         <div className="space-y-4">
           {timelineLogs.map((log) => {
-            const isTemplate = log.ID.startsWith('template_');
+            const hasHistory = log.STATS?.has_history ?? false;
+            const totalRuns = log.STATS?.total_runs ?? 0;
             
             return (
               <div key={log.ID} className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow">
@@ -75,23 +76,28 @@ const BpLogsTimelineTab = ({
                       <h3 className="text-lg font-semibold text-slate-900">
                         {log.SETTINGS?.TITLE || 'Без заголовка'}
                       </h3>
-                      {isTemplate && (
+                      {!hasHistory && (
                         <span className="px-3 py-1 bg-slate-100 text-slate-600 text-xs rounded-full font-medium">
                           Не запускался
+                        </span>
+                      )}
+                      {hasHistory && totalRuns > 0 && (
+                        <span className="px-3 py-1 bg-blue-50 text-blue-700 text-xs rounded-full font-medium">
+                          {totalRuns} {totalRuns === 1 ? 'запуск' : totalRuns < 5 ? 'запуска' : 'запусков'}
                         </span>
                       )}
                     </div>
                     <p className="text-sm text-slate-500 mt-1">
                       ID: {log.ID} • Автор: {log.AUTHOR_ID}
                     </p>
-                    {isTemplate && (
+                    {!hasHistory && (
                       <p className="text-xs text-slate-400 mt-2">
                         Статистика появится после первого запуска во вкладке "Запущенные"
                       </p>
                     )}
                   </div>
                   <div className="text-sm text-slate-500">
-                    {new Date(log.CREATED).toLocaleString('ru-RU')}
+                    {log.CREATED && new Date(log.CREATED).toLocaleString('ru-RU')}
                   </div>
                 </div>
 
