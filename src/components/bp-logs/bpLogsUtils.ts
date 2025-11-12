@@ -1,3 +1,9 @@
+export interface BPInstance {
+  id: string;
+  started: string;
+  started_by: string;
+}
+
 export interface TimelineLog {
   ID: string;
   CREATED: string;
@@ -13,6 +19,8 @@ export interface TimelineLog {
     total_runs: number;
     last_run?: string;
     has_history: boolean;
+    instances?: BPInstance[];
+    db_duplicates_found?: number;
   };
 }
 

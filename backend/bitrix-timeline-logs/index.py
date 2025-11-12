@@ -264,7 +264,9 @@ def get_timeline_logs(limit: int) -> List[Dict[str, Any]]:
                 'STATS': {
                     'total_runs': stats['total'],
                     'last_run': stats['last_started'],
-                    'has_history': True
+                    'has_history': True,
+                    'instances': stats.get('instances', []),
+                    'db_duplicates_found': stats.get('db_duplicates_found', 0)
                 }
             }
         else:
