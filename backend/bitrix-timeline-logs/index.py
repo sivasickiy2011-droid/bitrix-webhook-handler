@@ -114,21 +114,6 @@ def get_timeline_logs(limit: int) -> List[Dict[str, Any]]:
     webhook_url = webhook_url.rstrip('/')
     print(f"[DEBUG] Используем webhook: {webhook_url[:50]}...")
     
-    # Проверяем лог событий БП
-    event_log_response = requests.post(
-        f'{webhook_url}/bizproc.event.log.list',
-        json={
-            'order': {'ID': 'DESC'},
-            'select': ['ID', 'CREATED', 'NAME', 'DESCRIPTION', 'WORKFLOW_ID']
-        },
-        timeout=30
-    )
-    
-    print(f"[DEBUG] Event log API статус: {event_log_response.status_code}")
-    if event_log_response.status_code == 200:
-        event_log_data = event_log_response.json()
-        print(f"[DEBUG] Event log первые записи: {event_log_data.get('result', [])[:3] if event_log_data.get('result') else 'Пусто'}")
-    
     # Получаем список шаблонов БП
     templates_response = requests.post(
         f'{webhook_url}/bizproc.workflow.template.list',
@@ -145,39 +130,48 @@ def get_timeline_logs(limit: int) -> List[Dict[str, Any]]:
         raise Exception(f"Ошибка получения шаблонов: {templates_data.get('error_description', 'Неизвестная ошибка')}")
     
     templates = {t['ID']: t for t in templates_data.get('result', [])}
-    print(f"[DEBUG] Получено шаблонов: {len(templates)}")
+    print(f"[DEBUG] Получено шаблонов БП: {len(templates)}")
     
-    # Ищем шаблон "Дубли компании"
-    for tid, tdata in templates.items():
-        if 'дубл' in tdata.get('NAME', '').lower():
-            print(f"[DEBUG] Найден шаблон с дублями: ID={tid}, NAME={tdata.get('NAME')}")
-    
-    # Пробуем получить ВСЕ экземпляры без фильтров
-    all_instances_response = requests.post(
-        f'{webhook_url}/bizproc.workflow.instances',
+    # Используем bizproc.workflow.instance.list для получения ПОЛНОЙ истории (не только активных)
+    instances_response = requests.post(
+        f'{webhook_url}/bizproc.workflow.instance.list',
         json={
-            'select': ['ID', 'MODIFIED', 'STARTED', 'STARTED_BY', 'TEMPLATE_ID', 'WORKFLOW_STATUS', 'DOCUMENT_ID'],
-            'order': {'ID': 'DESC'}
+            'select': ['ID', 'STARTED', 'STARTED_BY', 'TEMPLATE_ID', 'MODIFIED', 'WORKFLOW_STATE', 'DOCUMENT_ID', 'MODULE_ID', 'ENTITY'],
+            'order': {'STARTED': 'DESC'},
+            'filter': {'>STARTED_BY': '0'}  # Только запущенные пользователями
         },
         timeout=30
     )
     
-    print(f"[DEBUG] Запрос ВСЕХ экземпляров: статус {all_instances_response.status_code}")
+    print(f"[DEBUG] Запрос instance.list статус: {instances_response.status_code}")
     
     instances = []
-    if all_instances_response.status_code == 200:
-        all_data = all_instances_response.json()
-        print(f"[DEBUG] Ответ API: {all_data}")
-        instances = all_data.get('result', [])
-        print(f"[DEBUG] Всего найдено экземпляров БП: {len(instances)}")
+    if instances_response.status_code == 200:
+        instances_data = instances_response.json()
+        instances = instances_data.get('result', [])
+        print(f"[DEBUG] Получено экземпляров БП из instance.list: {len(instances)}")
         if instances:
-            print(f"[DEBUG] Первые 3 экземпляра: {instances[:3]}")
+            print(f"[DEBUG] Первый экземпляр: ID={instances[0].get('ID')}, TEMPLATE_ID={instances[0].get('TEMPLATE_ID')}, STARTED={instances[0].get('STARTED')}")
     else:
-        print(f"[DEBUG] Ошибка запроса: {all_instances_response.text[:500]}")
-    print(f"[DEBUG] Получено экземпляров БП: {len(instances)}")
+        print(f"[DEBUG] Ошибка instance.list: {instances_response.text[:300]}")
     
-    if instances:
-        print(f"[DEBUG] Первый экземпляр: {instances[0]}")
+    # Получаем задачи БП для дополнительной проверки истории
+    tasks_response = requests.post(
+        f'{webhook_url}/bizproc.task.list',
+        json={
+            'select': ['ID', 'WORKFLOW_ID', 'WORKFLOW_TEMPLATE_ID', 'WORKFLOW_TEMPLATE_NAME', 'WORKFLOW_STARTED', 'WORKFLOW_STARTED_BY', 'MODIFIED'],
+            'order': {'WORKFLOW_STARTED': 'DESC'}
+        },
+        timeout=30
+    )
+    
+    tasks = []
+    if tasks_response.status_code == 200:
+        tasks_data = tasks_response.json()
+        tasks = tasks_data.get('result', [])
+        print(f"[DEBUG] Получено задач БП: {len(tasks)}")
+        if tasks:
+            print(f"[DEBUG] Первая задача: WORKFLOW_TEMPLATE_ID={tasks[0].get('WORKFLOW_TEMPLATE_ID')}, WORKFLOW_STARTED={tasks[0].get('WORKFLOW_STARTED')}")
     
     # Получаем статистику из БД для БП "Дубли компании"
     db_stats = get_db_bp_stats()
@@ -192,29 +186,62 @@ def get_timeline_logs(limit: int) -> List[Dict[str, Any]]:
             print(f"[DEBUG] Используем реальный ID шаблона Дубли компании: {duplicates_template_id}")
             break
     
-    # Считаем статистику запусков для каждого шаблона из API
+    # Считаем статистику запусков для каждого шаблона из instance.list
     template_stats = {}
     for instance in instances:
-        template_id = instance.get('TEMPLATE_ID', '')
+        template_id = instance.get('TEMPLATE_ID', '') or instance.get('WORKFLOW_TEMPLATE_ID', '')
+        if not template_id:
+            continue
+            
         if template_id not in template_stats:
             template_stats[template_id] = {
                 'total': 0,
                 'last_started': instance.get('STARTED', ''),
-                'last_status': instance.get('WORKFLOW_STATUS', ''),
-                'last_instance_id': instance.get('ID', '')
+                'last_status': instance.get('WORKFLOW_STATE', {}).get('STATE_NAME', 'completed') if isinstance(instance.get('WORKFLOW_STATE'), dict) else 'completed',
+                'last_instance_id': instance.get('ID', ''),
+                'instances': []
             }
         template_stats[template_id]['total'] += 1
+        template_stats[template_id]['instances'].append({
+            'id': instance.get('ID'),
+            'started': instance.get('STARTED'),
+            'started_by': instance.get('STARTED_BY')
+        })
+    
+    # Дополняем статистику из задач БП (если instance.list пустой)
+    for task in tasks:
+        template_id = task.get('WORKFLOW_TEMPLATE_ID', '')
+        if not template_id or template_id in template_stats:
+            continue
+        
+        template_stats[template_id] = {
+            'total': 1,
+            'last_started': task.get('WORKFLOW_STARTED', ''),
+            'last_status': 'completed',
+            'last_instance_id': task.get('WORKFLOW_ID', ''),
+            'instances': [{
+                'id': task.get('WORKFLOW_ID'),
+                'started': task.get('WORKFLOW_STARTED'),
+                'started_by': task.get('WORKFLOW_STARTED_BY')
+            }]
+        }
     
     # Добавляем статистику из БД для найденного шаблона "Дубли компании"
     if db_stats and db_stats.get('total_runs', 0) > 0 and duplicates_template_id:
+        # Объединяем данные из БД с данными из API
+        existing_stats = template_stats.get(duplicates_template_id, {'total': 0, 'instances': []})
         template_stats[duplicates_template_id] = {
-            'total': db_stats['total_runs'],
-            'last_started': db_stats['last_run'] or '',
+            'total': max(db_stats['total_runs'], existing_stats.get('total', 0)),
+            'last_started': db_stats['last_run'] or existing_stats.get('last_started', ''),
             'last_status': 'completed',
-            'last_instance_id': 'db_record'
+            'last_instance_id': existing_stats.get('last_instance_id', 'db_record'),
+            'instances': existing_stats.get('instances', []),
+            'db_duplicates_found': db_stats.get('duplicates_found', 0)
         }
     
     print(f"[DEBUG] Общая статистика по шаблонам: {template_stats}")
+    for tid, stats in template_stats.items():
+        print(f"[DEBUG] Шаблон {tid}: {stats['total']} запусков, последний: {stats['last_started']}")
     
     # Формируем список всех шаблонов со статистикой
     logs = []
