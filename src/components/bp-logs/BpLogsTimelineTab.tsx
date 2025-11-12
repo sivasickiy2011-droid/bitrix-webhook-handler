@@ -64,21 +64,36 @@ const BpLogsTimelineTab = ({
         </div>
       ) : (
         <div className="space-y-4">
-          {timelineLogs.map((log) => (
-            <div key={log.ID} className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-slate-900">
-                    {log.SETTINGS?.TITLE || 'Без заголовка'}
-                  </h3>
-                  <p className="text-sm text-slate-500 mt-1">
-                    ID: {log.ID} • Автор: {log.AUTHOR_ID}
-                  </p>
+          {timelineLogs.map((log) => {
+            const isTemplate = log.ID.startsWith('template_');
+            
+            return (
+              <div key={log.ID} className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="text-lg font-semibold text-slate-900">
+                        {log.SETTINGS?.TITLE || 'Без заголовка'}
+                      </h3>
+                      {isTemplate && (
+                        <span className="px-3 py-1 bg-slate-100 text-slate-600 text-xs rounded-full font-medium">
+                          Не запускался
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-slate-500 mt-1">
+                      ID: {log.ID} • Автор: {log.AUTHOR_ID}
+                    </p>
+                    {isTemplate && (
+                      <p className="text-xs text-slate-400 mt-2">
+                        Статистика появится после первого запуска во вкладке "Запущенные"
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-sm text-slate-500">
+                    {new Date(log.CREATED).toLocaleString('ru-RU')}
+                  </div>
                 </div>
-                <div className="text-sm text-slate-500">
-                  {new Date(log.CREATED).toLocaleString('ru-RU')}
-                </div>
-              </div>
 
               {log.SETTINGS?.MESSAGE && (
                 <div className="bg-slate-50 rounded-lg p-4 mb-4">
@@ -107,7 +122,8 @@ const BpLogsTimelineTab = ({
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
