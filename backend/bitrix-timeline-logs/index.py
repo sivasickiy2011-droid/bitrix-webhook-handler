@@ -147,6 +147,11 @@ def get_timeline_logs(limit: int) -> List[Dict[str, Any]]:
     templates = {t['ID']: t for t in templates_data.get('result', [])}
     print(f"[DEBUG] Получено шаблонов: {len(templates)}")
     
+    # Ищем шаблон "Дубли компании"
+    for tid, tdata in templates.items():
+        if 'дубл' in tdata.get('NAME', '').lower():
+            print(f"[DEBUG] Найден шаблон с дублями: ID={tid}, NAME={tdata.get('NAME')}")
+    
     # Пробуем получить ВСЕ экземпляры без фильтров
     all_instances_response = requests.post(
         f'{webhook_url}/bizproc.workflow.instances',
@@ -178,6 +183,15 @@ def get_timeline_logs(limit: int) -> List[Dict[str, Any]]:
     db_stats = get_db_bp_stats()
     print(f"[DEBUG] Статистика из БД: {db_stats}")
     
+    # Находим реальный ID шаблона "Дубли компании" в Битрикс24
+    duplicates_template_id = None
+    for tid, tdata in templates.items():
+        template_name = tdata.get('NAME', '').lower()
+        if 'дубл' in template_name:
+            duplicates_template_id = tid
+            print(f"[DEBUG] Используем реальный ID шаблона Дубли компании: {duplicates_template_id}")
+            break
+    
     # Считаем статистику запусков для каждого шаблона из API
     template_stats = {}
     for instance in instances:
@@ -191,9 +205,9 @@ def get_timeline_logs(limit: int) -> List[Dict[str, Any]]:
             }
         template_stats[template_id]['total'] += 1
     
-    # Добавляем статистику из БД для template_id='4' ("Дубли компании")
-    if db_stats and db_stats.get('total_runs', 0) > 0:
-        template_stats[db_stats['template_id']] = {
+    # Добавляем статистику из БД для найденного шаблона "Дубли компании"
+    if db_stats and db_stats.get('total_runs', 0) > 0 and duplicates_template_id:
+        template_stats[duplicates_template_id] = {
             'total': db_stats['total_runs'],
             'last_started': db_stats['last_run'] or '',
             'last_status': 'completed',
