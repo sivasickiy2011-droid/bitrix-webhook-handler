@@ -89,19 +89,43 @@ def get_db_bp_stats() -> Dict[str, Any]:
         
         row = cursor.fetchone()
         
+        # Получаем детальные записи запусков
+        cursor.execute("""
+            SELECT 
+                id,
+                created_at,
+                bitrix_company_id,
+                duplicate_found
+            FROM t_p8980362_bitrix_webhook_handl.webhook_logs
+            WHERE webhook_type = 'check_inn'
+            ORDER BY created_at DESC
+        """)
+        
+        instances = []
+        for instance_row in cursor.fetchall():
+            instances.append({
+                'id': f"webhook_{instance_row[0]}",
+                'started': instance_row[1].isoformat() if instance_row[1] else '',
+                'started_by': instance_row[2] or 'system',
+                'duplicate_found': instance_row[3]
+            })
+        
         cursor.close()
         conn.close()
         
         if row:
             return {
-                'template_id': '4',  # ID шаблона "Дубли компании"
+                'template_id': '4',
                 'total_runs': row[0] or 0,
                 'duplicates_found': row[1] or 0,
                 'last_run': row[2].isoformat() if row[2] else None,
-                'first_run': row[3].isoformat() if row[3] else None
+                'first_run': row[3].isoformat() if row[3] else None,
+                'instances': instances
             }
     except Exception as e:
         print(f"[DEBUG] Ошибка получения статистики из БД: {e}")
+        import traceback
+        traceback.print_exc()
         return {}
     
     return {}
@@ -176,6 +200,8 @@ def get_timeline_logs(limit: int) -> List[Dict[str, Any]]:
     # Получаем статистику из БД для БП "Дубли компании"
     db_stats = get_db_bp_stats()
     print(f"[DEBUG] Статистика из БД: {db_stats}")
+    if db_stats:
+        print(f"[DEBUG] БД instances count: {len(db_stats.get('instances', []))}")
     
     # Находим реальный ID шаблона "Дубли компании" в Битрикс24
     duplicates_template_id = None
@@ -230,14 +256,17 @@ def get_timeline_logs(limit: int) -> List[Dict[str, Any]]:
     if db_stats and db_stats.get('total_runs', 0) > 0 and duplicates_template_id:
         # Объединяем данные из БД с данными из API
         existing_stats = template_stats.get(duplicates_template_id, {'total': 0, 'instances': []})
+        db_instances = db_stats.get('instances', [])
+        
         template_stats[duplicates_template_id] = {
             'total': max(db_stats['total_runs'], existing_stats.get('total', 0)),
             'last_started': db_stats['last_run'] or existing_stats.get('last_started', ''),
             'last_status': 'completed',
             'last_instance_id': existing_stats.get('last_instance_id', 'db_record'),
-            'instances': existing_stats.get('instances', []),
+            'instances': db_instances + existing_stats.get('instances', []),
             'db_duplicates_found': db_stats.get('duplicates_found', 0)
         }
+        print(f"[DEBUG] Добавлено {len(db_instances)} записей из БД для шаблона {duplicates_template_id}")
     
     print(f"[DEBUG] Общая статистика по шаблонам: {template_stats}")
     for tid, stats in template_stats.items():
