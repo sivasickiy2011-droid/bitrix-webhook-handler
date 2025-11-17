@@ -43,8 +43,8 @@ export default function UnfDocuments() {
   const [showConnectionDialog, setShowConnectionDialog] = useState(false);
   const [showDocumentDialog, setShowDocumentDialog] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
-  const [syncPeriod, setSyncPeriod] = useState<'3days' | 'week' | 'month'>('month');
-  const [showPeriodMenu, setShowPeriodMenu] = useState(false);
+  const [docLimit, setDocLimit] = useState<5 | 10 | 20 | 50 | 100>(5);
+  const [showLimitMenu, setShowLimitMenu] = useState(false);
   const [filters, setFilters] = useState({
     number: '',
     customer: '',
@@ -190,21 +190,15 @@ export default function UnfDocuments() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           action: 'sync_documents',
-          period: syncPeriod
+          limit: docLimit
         })
       });
 
       const data = await response.json();
       if (data.success) {
-        const periodText = {
-          '3days': '3 дня',
-          'week': 'неделя',
-          'month': 'месяц'
-        }[syncPeriod];
-        
         toast({
           title: 'Успешно',
-          description: `Синхронизировано документов за ${periodText}: ${data.count}`
+          description: `Синхронизировано последних ${docLimit} документов: ${data.count} шт.`
         });
         loadDocuments();
       } else {
@@ -373,43 +367,59 @@ export default function UnfDocuments() {
                 <div className="relative">
                   <Button
                     variant="outline"
-                    onClick={() => setShowPeriodMenu(!showPeriodMenu)}
+                    onClick={() => setShowLimitMenu(!showLimitMenu)}
                     className="gap-2"
                   >
-                    <Icon name="Calendar" size={18} />
-                    {syncPeriod === '3days' && '3 дня'}
-                    {syncPeriod === 'week' && 'Неделя'}
-                    {syncPeriod === 'month' && 'Месяц'}
+                    <Icon name="Hash" size={18} />
+                    {docLimit} документов
                   </Button>
                   
-                  {showPeriodMenu && (
-                    <div className="absolute top-full mt-1 right-0 bg-background border rounded-lg shadow-lg z-10 min-w-[120px]">
+                  {showLimitMenu && (
+                    <div className="absolute top-full mt-1 right-0 bg-background border rounded-lg shadow-lg z-10 min-w-[140px]">
                       <button
                         className="w-full text-left px-4 py-2 hover:bg-muted rounded-t-lg"
                         onClick={() => {
-                          setSyncPeriod('3days');
-                          setShowPeriodMenu(false);
+                          setDocLimit(5);
+                          setShowLimitMenu(false);
                         }}
                       >
-                        3 дня
+                        5 документов
                       </button>
                       <button
                         className="w-full text-left px-4 py-2 hover:bg-muted"
                         onClick={() => {
-                          setSyncPeriod('week');
-                          setShowPeriodMenu(false);
+                          setDocLimit(10);
+                          setShowLimitMenu(false);
                         }}
                       >
-                        Неделя
+                        10 документов
+                      </button>
+                      <button
+                        className="w-full text-left px-4 py-2 hover:bg-muted"
+                        onClick={() => {
+                          setDocLimit(20);
+                          setShowLimitMenu(false);
+                        }}
+                      >
+                        20 документов
+                      </button>
+                      <button
+                        className="w-full text-left px-4 py-2 hover:bg-muted"
+                        onClick={() => {
+                          setDocLimit(50);
+                          setShowLimitMenu(false);
+                        }}
+                      >
+                        50 документов
                       </button>
                       <button
                         className="w-full text-left px-4 py-2 hover:bg-muted rounded-b-lg"
                         onClick={() => {
-                          setSyncPeriod('month');
-                          setShowPeriodMenu(false);
+                          setDocLimit(100);
+                          setShowLimitMenu(false);
                         }}
                       >
-                        Месяц
+                        100 документов
                       </button>
                     </div>
                   )}

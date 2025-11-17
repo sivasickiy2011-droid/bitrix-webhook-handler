@@ -150,13 +150,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     return response_json(400, {'success': False, 'error': 'No active connection'})
                 
                 password = base64.b64decode(connection['password_encrypted']).decode()
-                period = body_data.get('period', 'month')
+                limit = body_data.get('limit', 100)
                 
                 documents = fetch_documents_from_1c(
                     connection['url'],
                     connection['username'],
                     password,
-                    period
+                    limit
                 )
                 
                 saved_count = 0
@@ -308,17 +308,8 @@ def test_1c_connection(url: str, username: str, password: str) -> Dict[str, Any]
         print(f"[DEBUG] Exception: {str(e)}")
         return {'success': False, 'error': f'Ошибка подключения: {str(e)}'}
 
-def fetch_documents_from_1c(url: str, username: str, password: str, period: str = 'month') -> List[Dict]:
+def fetch_documents_from_1c(url: str, username: str, password: str, limit: int = 100) -> List[Dict]:
     """Получение документов из 1С УНФ через OData"""
-    from datetime import datetime, timedelta
-    
-    period_days = {
-        '3days': 3,
-        'week': 7,
-        'month': 30
-    }
-    
-    days = period_days.get(period, 30)
     
     odata_url = f"{url}/odata/standard.odata/Document_ЗаказПокупателя"
     
@@ -336,18 +327,18 @@ def fetch_documents_from_1c(url: str, username: str, password: str, period: str 
         except:
             pass
     
-    skip_count = max(0, total_count - 100)
+    skip_count = max(0, total_count - limit)
     
     params = {
         '$format': 'json',
         '$skip': str(skip_count),
-        '$top': '100',
+        '$top': str(limit),
         '$expand': 'Контрагент,СостояниеЗаказа,ВидЗаказа,Автор'
     }
     
     try:
         print(f"[DEBUG] Fetching documents from: {odata_url}")
-        print(f"[DEBUG] Period: {period} ({days} days)")
+        print(f"[DEBUG] Limit: {limit} documents")
         
         response = requests.get(
             odata_url,
