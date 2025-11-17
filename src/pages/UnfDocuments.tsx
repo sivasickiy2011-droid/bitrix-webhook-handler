@@ -333,6 +333,32 @@ export default function UnfDocuments() {
     }
   };
 
+  const enrichDocument = async (doc: Document) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}?action=enrich_document&id=${doc.id}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        toast({
+          title: '✅ Данные получены',
+          description: 'Документ обогащен данными из 1С'
+        });
+        loadDocuments();
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Ошибка',
+        description: error.message || 'Не удалось получить данные',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -462,6 +488,7 @@ export default function UnfDocuments() {
           filters={filters}
           onFiltersChange={setFilters}
           onViewDocument={viewDocument}
+          onEnrichDocument={enrichDocument}
           onCreateBitrixDeal={createBitrixDeal}
           onCheckBitrixDeal={checkBitrixDeal}
         />

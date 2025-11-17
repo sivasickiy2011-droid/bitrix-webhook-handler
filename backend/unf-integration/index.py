@@ -72,6 +72,54 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     'document': dict(document)
                 })
             
+            elif action == 'enrich_document':
+                doc_id = query_params.get('id', '')
+                if not doc_id:
+                    return response_json(400, {'success': False, 'error': 'Document ID required'})
+                
+                cur.execute("SELECT * FROM unf_documents WHERE id = %s", (doc_id,))
+                document = cur.fetchone()
+                
+                if not document:
+                    return response_json(404, {'success': False, 'error': 'Document not found'})
+                
+                cur.execute("SELECT * FROM unf_connections WHERE is_active = true LIMIT 1")
+                connection = cur.fetchone()
+                
+                if not connection:
+                    return response_json(400, {'success': False, 'error': 'No active connection'})
+                
+                password = base64.b64decode(connection['password_encrypted']).decode()
+                
+                enriched_data = enrich_document_from_1c(
+                    connection['url'],
+                    connection['username'],
+                    password,
+                    document['document_uid']
+                )
+                
+                if enriched_data:
+                    cur.execute("""
+                        UPDATE unf_documents 
+                        SET customer_name = %s, order_status = %s, order_type = %s, author = %s, updated_at = CURRENT_TIMESTAMP
+                        WHERE id = %s
+                    """, (
+                        enriched_data['customer'],
+                        enriched_data['order_status'],
+                        enriched_data['order_type'],
+                        enriched_data['author'],
+                        doc_id
+                    ))
+                    conn.commit()
+                    
+                    return response_json(200, {
+                        'success': True,
+                        'message': 'Document enriched',
+                        'data': enriched_data
+                    })
+                else:
+                    return response_json(500, {'success': False, 'error': 'Failed to enrich document'})
+            
             elif action == 'get_connection':
                 cur.execute("SELECT * FROM unf_connections WHERE is_active = true LIMIT 1")
                 connection = cur.fetchone()
@@ -369,10 +417,10 @@ def fetch_documents_from_1c(url: str, username: str, password: str, limit: int =
                     'number': item.get('Number', ''),
                     'date': item.get('Date', ''),
                     'sum': float(item.get('СуммаДокумента', 0) or 0),
-                    'customer': customer_ref[:8] if customer_ref else 'ID не найден',
-                    'order_status': order_status_ref[:8] if order_status_ref else '-',
-                    'order_type': order_type_ref[:8] if order_type_ref else '-',
-                    'author': author_ref[:8] if author_ref else '-',
+                    'customer': customer_ref if customer_ref else '',
+                    'order_status': order_status_ref if order_status_ref else '',
+                    'order_type': order_type_ref if order_type_ref else '',
+                    'author': author_ref if author_ref else '',
                     'raw_data': item
                 })
             
@@ -384,6 +432,60 @@ def fetch_documents_from_1c(url: str, username: str, password: str, limit: int =
     except Exception as e:
         print(f"Error fetching from 1C: {str(e)}")
         return []
+
+def enrich_document_from_1c(url: str, username: str, password: str, doc_uid: str) -> Dict:
+    """Получение полных данных документа из 1С УНФ через OData с $expand"""
+    try:
+        odata_url = f"{url}/odata/standard.odata/Document_ЗаказПокупателя(guid'{doc_uid}')"
+        
+        params = {
+            '$format': 'json',
+            '$expand': 'Контрагент,СостояниеЗаказа,ВидЗаказа,Автор'
+        }
+        
+        print(f"[DEBUG] Enriching document: {doc_uid}")
+        
+        response = requests.get(
+            odata_url,
+            params=params,
+            auth=HTTPBasicAuth(username, password),
+            headers={'Accept': 'application/json'},
+            timeout=10
+        )
+        
+        print(f"[DEBUG] Enrich response status: {response.status_code}")
+        
+        if response.status_code == 200:
+            item = response.json()
+            
+            customer_name = ''
+            if isinstance(item.get('Контрагент'), dict):
+                customer_name = item['Контрагент'].get('Description', '')
+            
+            order_status = ''
+            if isinstance(item.get('СостояниеЗаказа'), dict):
+                order_status = item['СостояниеЗаказа'].get('Description', '')
+            
+            order_type = ''
+            if isinstance(item.get('ВидЗаказа'), dict):
+                order_type = item['ВидЗаказа'].get('Description', '')
+            
+            author = ''
+            if isinstance(item.get('Автор'), dict):
+                author = item['Автор'].get('Description', '')
+            
+            return {
+                'customer': customer_name,
+                'order_status': order_status,
+                'order_type': order_type,
+                'author': author
+            }
+        else:
+            print(f"1C OData enrich error: {response.status_code} - {response.text}")
+            return None
+    except Exception as e:
+        print(f"Error enriching document: {str(e)}")
+        return None
 
 def create_bitrix_deal(webhook_url: str, document: Dict) -> str:
     """Создание сделки в Битрикс24"""

@@ -41,6 +41,7 @@ interface DocumentsTableProps {
   filters: Filters;
   onFiltersChange: (filters: Filters) => void;
   onViewDocument: (doc: Document) => void;
+  onEnrichDocument: (doc: Document) => void;
   onCreateBitrixDeal: (doc: Document) => void;
   onCheckBitrixDeal: (dealId: string) => void;
 }
@@ -52,6 +53,7 @@ export default function DocumentsTable({
   filters,
   onFiltersChange,
   onViewDocument,
+  onEnrichDocument,
   onCreateBitrixDeal,
   onCheckBitrixDeal
 }: DocumentsTableProps) {
@@ -178,6 +180,18 @@ export default function DocumentsTable({
                       >
                         <Icon name="Eye" size={16} />
                       </Button>
+                      {(!doc.customer_name || doc.customer_name.length < 10) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onEnrichDocument(doc)}
+                          disabled={loading}
+                          className="gap-1"
+                        >
+                          <Icon name="Download" size={16} />
+                          Данные
+                        </Button>
+                      )}
                       {!doc.synced_to_bitrix && (
                         <Button
                           size="sm"
