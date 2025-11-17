@@ -1,4 +1,5 @@
 {
+  "unf-integration": "https://functions.poehali.dev/e07c8cef-5ce3-4e78-a012-72019f5b752e",
   "rollback-history": "https://functions.poehali.dev/96c3dff1-6a64-4e7b-b6a2-c268cd73c842",
   "deal-rollback": "https://functions.poehali.dev/61454b6b-601a-40b6-81e2-b0a8bc5da4d7",
   "deal-changes-enrich": "https://functions.poehali.dev/b597a185-9519-4098-92d3-670edaa7daac",
