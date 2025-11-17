@@ -50,6 +50,7 @@ export default function UnfDocuments() {
   
   const [documents, setDocuments] = useState<Document[]>([]);
   const [connection, setConnection] = useState<Connection | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<'checking' | 'online' | 'offline' | null>(null);
   const [loading, setLoading] = useState(false);
   const [showConnectionDialog, setShowConnectionDialog] = useState(false);
   const [showDocumentDialog, setShowDocumentDialog] = useState(false);
@@ -72,9 +73,32 @@ export default function UnfDocuments() {
       const data = await response.json();
       if (data.success && data.connection) {
         setConnection(data.connection);
+        checkConnectionStatus();
       }
     } catch (error) {
       console.error('Error loading connection:', error);
+    }
+  };
+
+  const checkConnectionStatus = async () => {
+    setConnectionStatus('checking');
+    try {
+      const response = await fetch(`${API_URL}?action=test_connection`);
+      const data = await response.json();
+      
+      if (data.success && data.connection_status?.success) {
+        setConnectionStatus('online');
+      } else {
+        setConnectionStatus('offline');
+        toast({
+          title: 'Проблема с подключением',
+          description: data.connection_status?.error || 'Не удалось подключиться к 1С',
+          variant: 'destructive'
+        });
+      }
+    } catch (error) {
+      setConnectionStatus('offline');
+      console.error('Error checking connection:', error);
     }
   };
 
@@ -282,6 +306,25 @@ export default function UnfDocuments() {
     }).format(sum);
   };
 
+  const getConnectionStatusBadge = () => {
+    if (!connectionStatus) return null;
+    
+    const statusConfig = {
+      checking: { icon: 'Loader2', text: 'Проверка...', className: 'bg-yellow-500', spinning: true },
+      online: { icon: 'Wifi', text: 'Подключено', className: 'bg-green-500', spinning: false },
+      offline: { icon: 'WifiOff', text: 'Нет связи', className: 'bg-red-500', spinning: false }
+    };
+    
+    const config = statusConfig[connectionStatus];
+    
+    return (
+      <Badge className={`${config.className} text-white gap-2`}>
+        <Icon name={config.icon} size={14} className={config.spinning ? 'animate-spin' : ''} />
+        {config.text}
+      </Badge>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -323,15 +366,31 @@ export default function UnfDocuments() {
         {connection && (
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Icon name="Database" size={20} />
-                Подключение: {connection.name}
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Icon name="Database" size={20} />
+                  Подключение: {connection.name}
+                </div>
+                {getConnectionStatusBadge()}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-sm text-muted-foreground">
-                <div>URL: {connection.url}</div>
-                <div>Пользователь: {connection.username}</div>
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">
+                  <div>URL: {connection.url}</div>
+                  <div>Пользователь: {connection.username}</div>
+                </div>
+                {connectionStatus === 'offline' && (
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={checkConnectionStatus}
+                    className="gap-2"
+                  >
+                    <Icon name="RefreshCw" size={16} />
+                    Проверить снова
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>

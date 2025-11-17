@@ -81,6 +81,25 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     return response_json(200, {'success': True, 'connection': conn_dict})
                 else:
                     return response_json(200, {'success': True, 'connection': None})
+            
+            elif action == 'test_connection':
+                cur.execute("SELECT * FROM unf_connections WHERE is_active = true LIMIT 1")
+                connection = cur.fetchone()
+                
+                if not connection:
+                    return response_json(400, {'success': False, 'error': 'No active connection'})
+                
+                password = base64.b64decode(connection['password_encrypted']).decode()
+                test_result = test_1c_connection(
+                    connection['url'],
+                    connection['username'],
+                    password
+                )
+                
+                return response_json(200, {
+                    'success': True,
+                    'connection_status': test_result
+                })
         
         elif method == 'POST':
             body_data = json.loads(event.get('body', '{}'))
