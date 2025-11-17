@@ -295,6 +295,40 @@ export default function UnfDocuments() {
     }
   };
 
+  const clearDocuments = async () => {
+    if (!confirm('Очистить список документов? Это не удалит документы из 1С.')) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'clear_documents' })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        toast({
+          title: 'Успешно',
+          description: `Очищено документов: ${data.count}`
+        });
+        loadDocuments();
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Ошибка',
+        description: error.message || 'Не удалось очистить документы',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -375,6 +409,18 @@ export default function UnfDocuments() {
                   <Icon name="RefreshCw" size={18} className={loading ? 'animate-spin' : ''} />
                   Синхронизировать
                 </Button>
+                
+                {documents.length > 0 && (
+                  <Button 
+                    onClick={clearDocuments} 
+                    disabled={loading} 
+                    variant="outline"
+                    className="gap-2"
+                  >
+                    <Icon name="Trash2" size={18} />
+                    Очистить список
+                  </Button>
+                )}
               </div>
             )}
           </div>

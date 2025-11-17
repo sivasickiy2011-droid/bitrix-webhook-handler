@@ -241,6 +241,17 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     'exists': exists,
                     'deal_id': deal_id
                 })
+            
+            elif action == 'clear_documents':
+                cur.execute("DELETE FROM unf_documents")
+                deleted_count = cur.rowcount
+                conn.commit()
+                
+                return response_json(200, {
+                    'success': True,
+                    'message': f'Cleared {deleted_count} documents',
+                    'count': deleted_count
+                })
         
         return response_json(405, {'error': 'Method not allowed'})
         
@@ -303,9 +314,26 @@ def fetch_documents_from_1c(url: str, username: str, password: str, period: str 
     days = period_days.get(period, 30)
     
     odata_url = f"{url}/odata/standard.odata/Document_ЗаказПокупателя"
+    
+    response_count = requests.get(
+        f"{odata_url}/$count",
+        auth=HTTPBasicAuth(username, password),
+        timeout=10
+    )
+    
+    total_count = 0
+    if response_count.status_code == 200:
+        try:
+            total_count = int(response_count.text.strip())
+            print(f"[DEBUG] Total documents in 1C: {total_count}")
+        except:
+            pass
+    
+    skip_count = max(0, total_count - 100)
+    
     params = {
         '$format': 'json',
-        '$orderby': 'Date%20desc',
+        '$skip': str(skip_count),
         '$top': '100'
     }
     
