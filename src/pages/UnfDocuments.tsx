@@ -7,357 +7,52 @@ import ConnectionCard from '@/components/unf/ConnectionCard';
 import DocumentsTable from '@/components/unf/DocumentsTable';
 import ConnectionDialog from '@/components/unf/ConnectionDialog';
 import DocumentViewDialog from '@/components/unf/DocumentViewDialog';
-
-const API_URL = 'https://functions.poehali.dev/e07c8cef-5ce3-4e78-a012-72019f5b752e';
-
-interface Document {
-  id: number;
-  document_uid: string;
-  document_number: string;
-  document_date: string;
-  document_sum: number;
-  customer_name: string;
-  bitrix_deal_id: string | null;
-  synced_to_bitrix: boolean;
-  document_json?: any;
-  order_status?: string;
-  order_type?: string;
-  author?: string;
-}
-
-interface Connection {
-  id: number;
-  name: string;
-  url: string;
-  username: string;
-}
+import { useUnfConnection } from '@/hooks/useUnfConnection';
+import { useUnfDocuments } from '@/hooks/useUnfDocuments';
+import { useUnfBitrix } from '@/hooks/useUnfBitrix';
 
 export default function UnfDocuments() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [connection, setConnection] = useState<Connection | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<'checking' | 'online' | 'offline' | null>(null);
   const [loading, setLoading] = useState(false);
-  const [showConnectionDialog, setShowConnectionDialog] = useState(false);
-  const [showDocumentDialog, setShowDocumentDialog] = useState(false);
-  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
-  const [docLimit, setDocLimit] = useState<5 | 10 | 20 | 50 | 100>(5);
-  const [showLimitMenu, setShowLimitMenu] = useState(false);
-  const [filters, setFilters] = useState({
-    number: '',
-    customer: '',
-    status: '',
-    type: '',
-    author: ''
-  });
-  
-  const [connectionForm, setConnectionForm] = useState({
-    url: '',
-    username: '',
-    password: ''
-  });
+
+  const {
+    connection,
+    connectionStatus,
+    showConnectionDialog,
+    connectionForm,
+    setShowConnectionDialog,
+    setConnectionForm,
+    loadConnection,
+    checkConnectionStatus,
+    openEditConnection,
+    saveConnection
+  } = useUnfConnection(toast);
+
+  const {
+    documents,
+    showDocumentDialog,
+    selectedDocument,
+    docLimit,
+    showLimitMenu,
+    filters,
+    setShowDocumentDialog,
+    setDocLimit,
+    setShowLimitMenu,
+    setFilters,
+    loadDocuments,
+    syncDocuments,
+    viewDocument,
+    clearDocuments,
+    enrichDocument
+  } = useUnfDocuments(toast, connection);
+
+  const { createBitrixDeal, checkBitrixDeal } = useUnfBitrix(toast, loadDocuments);
 
   useEffect(() => {
     loadConnection();
-    loadDocuments();
+    loadDocuments(setLoading);
   }, []);
-
-  const loadConnection = async () => {
-    try {
-      const response = await fetch(`${API_URL}?action=get_connection`);
-      const data = await response.json();
-      if (data.success && data.connection) {
-        setConnection(data.connection);
-        checkConnectionStatus();
-      }
-    } catch (error) {
-      console.error('Error loading connection:', error);
-    }
-  };
-
-  const checkConnectionStatus = async () => {
-    setConnectionStatus('checking');
-    try {
-      const response = await fetch(`${API_URL}?action=test_connection`);
-      const data = await response.json();
-      
-      if (data.success && data.connection_status?.success) {
-        setConnectionStatus('online');
-      } else {
-        setConnectionStatus('offline');
-      }
-    } catch (error) {
-      setConnectionStatus('offline');
-      console.error('Error checking connection:', error);
-    }
-  };
-
-  const openEditConnection = () => {
-    if (connection) {
-      setConnectionForm({
-        url: connection.url,
-        username: connection.username,
-        password: ''
-      });
-      setShowConnectionDialog(true);
-    }
-  };
-
-  const loadDocuments = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_URL}?action=list`);
-      const data = await response.json();
-      if (data.success) {
-        setDocuments(data.documents || []);
-      }
-    } catch (error) {
-      toast({
-        title: 'Ошибка',
-        description: 'Не удалось загрузить документы',
-        variant: 'destructive'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const saveConnection = async () => {
-    if (!connectionForm.url || !connectionForm.username || !connectionForm.password) {
-      toast({
-        title: 'Ошибка',
-        description: 'Заполните все поля',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    setLoading(true);
-    toast({
-      title: 'Проверка подключения...',
-      description: 'Проверяем логин и пароль 1С УНФ'
-    });
-
-    try {
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'save_connection',
-          ...connectionForm
-        })
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        toast({
-          title: '✅ Подключение установлено',
-          description: 'Логин и пароль верны, данные сохранены'
-        });
-        setShowConnectionDialog(false);
-        setConnectionForm({ url: '', username: '', password: '' });
-        loadConnection();
-      } else {
-        throw new Error(data.error);
-      }
-    } catch (error: any) {
-      toast({
-        title: '❌ Ошибка подключения',
-        description: error.message || 'Не удалось подключиться к 1С',
-        variant: 'destructive'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const syncDocuments = async () => {
-    if (!connection) {
-      toast({
-        title: 'Ошибка',
-        description: 'Сначала настройте подключение к 1С',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          action: 'sync_documents',
-          limit: docLimit
-        })
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        toast({
-          title: 'Успешно',
-          description: `Синхронизировано последних ${docLimit} документов: ${data.count} шт.`
-        });
-        loadDocuments();
-      } else {
-        throw new Error(data.error);
-      }
-    } catch (error: any) {
-      toast({
-        title: 'Ошибка',
-        description: error.message || 'Не удалось синхронизировать документы',
-        variant: 'destructive'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const viewDocument = async (doc: Document) => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_URL}?action=get_document&id=${doc.id}`);
-      const data = await response.json();
-      if (data.success) {
-        setSelectedDocument(data.document);
-        setShowDocumentDialog(true);
-      }
-    } catch (error) {
-      toast({
-        title: 'Ошибка',
-        description: 'Не удалось загрузить документ',
-        variant: 'destructive'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const createBitrixDeal = async (doc: Document) => {
-    setLoading(true);
-    try {
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'create_bitrix_deal',
-          document_id: doc.id
-        })
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        toast({
-          title: 'Успешно',
-          description: `Сделка создана: ${data.deal_id}`
-        });
-        loadDocuments();
-      } else {
-        throw new Error(data.error);
-      }
-    } catch (error: any) {
-      toast({
-        title: 'Ошибка',
-        description: error.message || 'Не удалось создать сделку',
-        variant: 'destructive'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const checkBitrixDeal = async (dealId: string) => {
-    setLoading(true);
-    try {
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'check_bitrix_deal',
-          deal_id: dealId
-        })
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        toast({
-          title: data.exists ? 'Сделка существует' : 'Сделка не найдена',
-          description: `ID сделки: ${dealId}`,
-          variant: data.exists ? 'default' : 'destructive'
-        });
-      }
-    } catch (error) {
-      toast({
-        title: 'Ошибка',
-        description: 'Не удалось проверить сделку',
-        variant: 'destructive'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const clearDocuments = async () => {
-    if (!confirm('Очистить список документов? Это не удалит документы из 1С.')) {
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'clear_documents' })
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        toast({
-          title: 'Успешно',
-          description: `Очищено документов: ${data.count}`
-        });
-        loadDocuments();
-      } else {
-        throw new Error(data.error);
-      }
-    } catch (error: any) {
-      toast({
-        title: 'Ошибка',
-        description: error.message || 'Не удалось очистить документы',
-        variant: 'destructive'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const enrichDocument = async (doc: Document) => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_URL}?action=enrich_document&id=${doc.id}`);
-      const data = await response.json();
-      
-      if (data.success) {
-        toast({
-          title: '✅ Данные получены',
-          description: 'Документ обогащен данными из 1С'
-        });
-        loadDocuments();
-      } else {
-        throw new Error(data.error);
-      }
-    } catch (error: any) {
-      toast({
-        title: 'Ошибка',
-        description: error.message || 'Не удалось получить данные',
-        variant: 'destructive'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 p-6">
@@ -451,14 +146,14 @@ export default function UnfDocuments() {
                   )}
                 </div>
                 
-                <Button onClick={syncDocuments} disabled={loading} className="gap-2">
+                <Button onClick={() => syncDocuments(setLoading)} disabled={loading} className="gap-2">
                   <Icon name="RefreshCw" size={18} className={loading ? 'animate-spin' : ''} />
                   Синхронизировать
                 </Button>
                 
                 {documents.length > 0 && (
                   <Button 
-                    onClick={clearDocuments} 
+                    onClick={() => clearDocuments(setLoading)} 
                     disabled={loading} 
                     variant="outline"
                     className="gap-2"
@@ -487,10 +182,10 @@ export default function UnfDocuments() {
           connection={connection}
           filters={filters}
           onFiltersChange={setFilters}
-          onViewDocument={viewDocument}
-          onEnrichDocument={enrichDocument}
-          onCreateBitrixDeal={createBitrixDeal}
-          onCheckBitrixDeal={checkBitrixDeal}
+          onViewDocument={(doc) => viewDocument(doc, setLoading)}
+          onEnrichDocument={(doc) => enrichDocument(doc, setLoading)}
+          onCreateBitrixDeal={(doc) => createBitrixDeal(doc, setLoading)}
+          onCheckBitrixDeal={(dealId) => checkBitrixDeal(dealId, setLoading)}
         />
       </div>
 
@@ -500,7 +195,7 @@ export default function UnfDocuments() {
         connectionForm={connectionForm}
         onOpenChange={setShowConnectionDialog}
         onFormChange={setConnectionForm}
-        onSave={saveConnection}
+        onSave={() => saveConnection(setLoading)}
       />
 
       <DocumentViewDialog
