@@ -75,13 +75,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             
             if action == 'login':
                 username = body_data.get('username', '').strip()
-                password = body_data.get('password', '').strip()
                 
-                # КРИТИЧНО: Получаем логин/пароль из секретов
+                # ВРЕМЕННО: Вход только по логину без пароля
                 admin_username = os.environ.get('ADMIN_USERNAME', 'admin')
-                admin_password = os.environ.get('ADMIN_PASSWORD', 'admin123')
                 
-                if username == admin_username and password == admin_password:
+                if username == admin_username:
                     import hashlib
                     import time
                     token = hashlib.sha256(f"{username}{time.time()}".encode()).hexdigest()
@@ -94,7 +92,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 else:
                     return response_json(401, {
                         'success': False,
-                        'error': 'Неверный логин или пароль'
+                        'error': 'Неверный логин'
                     })
             
             if action == 'restore':
