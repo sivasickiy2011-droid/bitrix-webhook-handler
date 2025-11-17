@@ -305,7 +305,7 @@ def fetch_documents_from_1c(url: str, username: str, password: str, period: str 
     odata_url = f"{url}/odata/standard.odata/Document_ЗаказПокупателя"
     params = {
         '$format': 'json',
-        '$orderby': 'Date desc',
+        '$orderby': 'Date%20desc',
         '$top': '100'
     }
     
