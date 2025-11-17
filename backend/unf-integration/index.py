@@ -301,14 +301,12 @@ def fetch_documents_from_1c(url: str, username: str, password: str, period: str 
     }
     
     days = period_days.get(period, 30)
-    start_date = datetime.now() - timedelta(days=days)
-    date_filter = start_date.strftime('%Y-%m-%dT%H:%M:%S')
     
     odata_url = f"{url}/odata/standard.odata/Document_ЗаказПокупателя"
     params = {
-        '$filter': f"Date ge datetime'{date_filter}'",
         '$format': 'json',
-        '$orderby': 'Date desc'
+        '$orderby': 'Date desc',
+        '$top': '100'
     }
     
     try:
