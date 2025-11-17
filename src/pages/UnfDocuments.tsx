@@ -40,6 +40,8 @@ export default function UnfDocuments() {
   const [showConnectionDialog, setShowConnectionDialog] = useState(false);
   const [showDocumentDialog, setShowDocumentDialog] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [syncPeriod, setSyncPeriod] = useState<'3days' | 'week' | 'month'>('month');
+  const [showPeriodMenu, setShowPeriodMenu] = useState(false);
   
   const [connectionForm, setConnectionForm] = useState({
     url: '',
@@ -176,14 +178,23 @@ export default function UnfDocuments() {
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'sync_documents' })
+        body: JSON.stringify({ 
+          action: 'sync_documents',
+          period: syncPeriod
+        })
       });
 
       const data = await response.json();
       if (data.success) {
+        const periodText = {
+          '3days': '3 дня',
+          'week': 'неделя',
+          'month': 'месяц'
+        }[syncPeriod];
+        
         toast({
           title: 'Успешно',
-          description: `Синхронизировано документов: ${data.count}`
+          description: `Синхронизировано документов за ${periodText}: ${data.count}`
         });
         loadDocuments();
       } else {
@@ -314,10 +325,57 @@ export default function UnfDocuments() {
             </Button>
             
             {connection && (
-              <Button onClick={syncDocuments} disabled={loading} className="gap-2">
-                <Icon name="RefreshCw" size={18} className={loading ? 'animate-spin' : ''} />
-                Синхронизировать
-              </Button>
+              <div className="flex gap-2">
+                <div className="relative">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowPeriodMenu(!showPeriodMenu)}
+                    className="gap-2"
+                  >
+                    <Icon name="Calendar" size={18} />
+                    {syncPeriod === '3days' && '3 дня'}
+                    {syncPeriod === 'week' && 'Неделя'}
+                    {syncPeriod === 'month' && 'Месяц'}
+                  </Button>
+                  
+                  {showPeriodMenu && (
+                    <div className="absolute top-full mt-1 right-0 bg-background border rounded-lg shadow-lg z-10 min-w-[120px]">
+                      <button
+                        className="w-full text-left px-4 py-2 hover:bg-muted rounded-t-lg"
+                        onClick={() => {
+                          setSyncPeriod('3days');
+                          setShowPeriodMenu(false);
+                        }}
+                      >
+                        3 дня
+                      </button>
+                      <button
+                        className="w-full text-left px-4 py-2 hover:bg-muted"
+                        onClick={() => {
+                          setSyncPeriod('week');
+                          setShowPeriodMenu(false);
+                        }}
+                      >
+                        Неделя
+                      </button>
+                      <button
+                        className="w-full text-left px-4 py-2 hover:bg-muted rounded-b-lg"
+                        onClick={() => {
+                          setSyncPeriod('month');
+                          setShowPeriodMenu(false);
+                        }}
+                      >
+                        Месяц
+                      </button>
+                    </div>
+                  )}
+                </div>
+                
+                <Button onClick={syncDocuments} disabled={loading} className="gap-2">
+                  <Icon name="RefreshCw" size={18} className={loading ? 'animate-spin' : ''} />
+                  Синхронизировать
+                </Button>
+              </div>
             )}
           </div>
         </div>

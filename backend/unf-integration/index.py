@@ -149,11 +149,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     return response_json(400, {'success': False, 'error': 'No active connection'})
                 
                 password = base64.b64decode(connection['password_encrypted']).decode()
+                period = body_data.get('period', 'month')
                 
                 documents = fetch_documents_from_1c(
                     connection['url'],
                     connection['username'],
-                    password
+                    password,
+                    period
                 )
                 
                 saved_count = 0
@@ -250,36 +252,32 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         conn.close()
 
 def test_1c_connection(url: str, username: str, password: str) -> Dict[str, Any]:
-    """Проверка подключения к 1С УНФ"""
+    """Проверка подключения к 1С УНФ через OData"""
     try:
         print(f"[DEBUG] Testing connection to: {url}")
-        test_request = """<?xml version="1.0" encoding="UTF-8"?>
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" 
-               xmlns:xdto="http://www.1c.ru/SSL/IntegrationService">
-  <soap:Body>
-    <xdto:Execute>
-      <xdto:Query>SELECT TOP 1 1 AS Test</xdto:Query>
-    </xdto:Execute>
-  </soap:Body>
-</soap:Envelope>"""
         
-        response = requests.post(
-            url,
-            data=test_request,
+        odata_url = f"{url}/odata/standard.odata/Document_ЗаказПокупателя"
+        params = {
+            '$top': '1',
+            '$format': 'json'
+        }
+        
+        response = requests.get(
+            odata_url,
+            params=params,
             auth=HTTPBasicAuth(username, password),
-            headers={'Content-Type': 'text/xml; charset=utf-8'},
+            headers={'Accept': 'application/json'},
             timeout=10
         )
         
         print(f"[DEBUG] Response status: {response.status_code}")
-        print(f"[DEBUG] Response text: {response.text[:200]}")
         
         if response.status_code == 200:
             return {'success': True, 'message': 'Connection successful'}
         elif response.status_code == 401:
             return {'success': False, 'error': 'Неверный логин или пароль'}
         elif response.status_code == 404:
-            return {'success': False, 'error': 'URL не найден. Проверьте адрес XDTO сервиса'}
+            return {'success': False, 'error': 'URL не найден. Проверьте адрес OData сервиса'}
         else:
             return {'success': False, 'error': f'Ошибка сервера: HTTP {response.status_code}'}
     except requests.exceptions.Timeout:
@@ -292,76 +290,63 @@ def test_1c_connection(url: str, username: str, password: str) -> Dict[str, Any]
         print(f"[DEBUG] Exception: {str(e)}")
         return {'success': False, 'error': f'Ошибка подключения: {str(e)}'}
 
-def fetch_documents_from_1c(url: str, username: str, password: str) -> List[Dict]:
-    """Получение документов из 1С УНФ через XDTO"""
+def fetch_documents_from_1c(url: str, username: str, password: str, period: str = 'month') -> List[Dict]:
+    """Получение документов из 1С УНФ через OData"""
+    from datetime import datetime, timedelta
+    
+    period_days = {
+        '3days': 3,
+        'week': 7,
+        'month': 30
+    }
+    
+    days = period_days.get(period, 30)
+    start_date = datetime.now() - timedelta(days=days)
+    date_filter = start_date.strftime('%Y-%m-%dT%H:%M:%S')
+    
+    odata_url = f"{url}/odata/standard.odata/Document_ЗаказПокупателя"
+    params = {
+        '$filter': f"Date ge datetime'{date_filter}'",
+        '$format': 'json',
+        '$orderby': 'Date desc'
+    }
+    
     try:
-        xdto_request = """<?xml version="1.0" encoding="UTF-8"?>
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" 
-               xmlns:xdto="http://www.1c.ru/SSL/IntegrationService">
-  <soap:Body>
-    <xdto:Execute>
-      <xdto:Query>SELECT ЗаказПокупателя.Ссылка AS UID, 
-                         ЗаказПокупателя.Номер AS Number, 
-                         ЗаказПокупателя.Дата AS Date,
-                         ЗаказПокупателя.СуммаДокумента AS Sum,
-                         ЗаказПокупателя.Контрагент.Наименование AS Customer
-                  FROM Документ.ЗаказПокупателя AS ЗаказПокупателя
-                  WHERE ЗаказПокупателя.Дата >= &StartDate
-                  ORDER BY ЗаказПокупателя.Дата DESC</xdto:Query>
-      <xdto:Parameters>
-        <xdto:Parameter>
-          <xdto:Name>StartDate</xdto:Name>
-          <xdto:Value>2024-01-01T00:00:00</xdto:Value>
-        </xdto:Parameter>
-      </xdto:Parameters>
-    </xdto:Execute>
-  </soap:Body>
-</soap:Envelope>"""
+        print(f"[DEBUG] Fetching documents from: {odata_url}")
+        print(f"[DEBUG] Period: {period} ({days} days)")
         
-        response = requests.post(
-            url,
-            data=xdto_request,
+        response = requests.get(
+            odata_url,
+            params=params,
             auth=HTTPBasicAuth(username, password),
-            headers={'Content-Type': 'text/xml; charset=utf-8'},
+            headers={'Accept': 'application/json'},
             timeout=30
         )
         
+        print(f"[DEBUG] Response status: {response.status_code}")
+        
         if response.status_code == 200:
-            return parse_xdto_response(response.text)
+            data = response.json()
+            documents = []
+            
+            for item in data.get('value', []):
+                documents.append({
+                    'uid': item.get('Ref_Key', ''),
+                    'number': item.get('Number', ''),
+                    'date': item.get('Date', ''),
+                    'sum': float(item.get('СуммаДокумента', 0) or 0),
+                    'customer': item.get('Контрагент', ''),
+                    'raw_data': item
+                })
+            
+            print(f"[DEBUG] Fetched {len(documents)} documents")
+            return documents
         else:
-            print(f"1C response error: {response.status_code} - {response.text}")
+            print(f"1C OData error: {response.status_code} - {response.text}")
             return []
     except Exception as e:
         print(f"Error fetching from 1C: {str(e)}")
         return []
-
-def parse_xdto_response(xml_text: str) -> List[Dict]:
-    """Парсинг XDTO ответа от 1С"""
-    import xml.etree.ElementTree as ET
-    
-    documents = []
-    try:
-        root = ET.fromstring(xml_text)
-        
-        for row in root.findall('.//{http://www.1c.ru/SSL/IntegrationService}Row'):
-            doc = {}
-            for field in row:
-                tag_name = field.tag.split('}')[-1]
-                doc[tag_name.lower()] = field.text
-            
-            if doc.get('uid'):
-                documents.append({
-                    'uid': doc.get('uid'),
-                    'number': doc.get('number', ''),
-                    'date': doc.get('date', ''),
-                    'sum': float(doc.get('sum', 0) or 0),
-                    'customer': doc.get('customer', ''),
-                    'raw_data': doc
-                })
-    except Exception as e:
-        print(f"Error parsing XDTO: {str(e)}")
-    
-    return documents
 
 def create_bitrix_deal(webhook_url: str, document: Dict) -> str:
     """Создание сделки в Битрикс24"""

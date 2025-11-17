@@ -36,18 +36,21 @@ export default function ConnectionDialog({
         <DialogHeader>
           <DialogTitle>Подключение к 1С УНФ</DialogTitle>
           <DialogDescription>
-            Введите данные для подключения к 1С через XDTO (Fresh)
+            Введите данные для подключения к 1С через OData (Fresh)
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div>
-            <Label htmlFor="url">URL XDTO сервиса</Label>
+            <Label htmlFor="url">URL базы 1С Fresh (без /odata)</Label>
             <Input
               id="url"
-              placeholder="https://your-portal.1cfresh.com/ws/..."
+              placeholder="https://1cfresh.com/a/sbm/801737"
               value={connectionForm.url}
               onChange={(e) => onFormChange({ ...connectionForm, url: e.target.value })}
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              Пример: https://1cfresh.com/a/sbm/801737
+            </p>
           </div>
           <div>
             <Label htmlFor="username">Логин</Label>
