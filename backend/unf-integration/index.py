@@ -95,6 +95,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 if not url or not username or not password:
                     return response_json(400, {'success': False, 'error': 'URL, username and password required'})
                 
+                test_result = test_1c_connection(url, username, password)
+                
+                if not test_result['success']:
+                    return response_json(400, {
+                        'success': False, 
+                        'error': f"Не удалось подключиться к 1С: {test_result['error']}"
+                    })
+                
                 password_encoded = base64.b64encode(password.encode()).decode()
                 
                 cur.execute("UPDATE unf_connections SET is_active = false")
@@ -110,7 +118,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 
                 return response_json(200, {
                     'success': True,
-                    'message': 'Connection saved',
+                    'message': 'Подключение успешно проверено и сохранено',
                     'connection_id': connection_id
                 })
             
@@ -221,6 +229,42 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     finally:
         cur.close()
         conn.close()
+
+def test_1c_connection(url: str, username: str, password: str) -> Dict[str, Any]:
+    """Проверка подключения к 1С УНФ"""
+    try:
+        test_request = """<?xml version="1.0" encoding="UTF-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" 
+               xmlns:xdto="http://www.1c.ru/SSL/IntegrationService">
+  <soap:Body>
+    <xdto:Execute>
+      <xdto:Query>SELECT TOP 1 1 AS Test</xdto:Query>
+    </xdto:Execute>
+  </soap:Body>
+</soap:Envelope>"""
+        
+        response = requests.post(
+            url,
+            data=test_request,
+            auth=HTTPBasicAuth(username, password),
+            headers={'Content-Type': 'text/xml; charset=utf-8'},
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return {'success': True, 'message': 'Connection successful'}
+        elif response.status_code == 401:
+            return {'success': False, 'error': 'Неверный логин или пароль'}
+        elif response.status_code == 404:
+            return {'success': False, 'error': 'URL не найден. Проверьте адрес XDTO сервиса'}
+        else:
+            return {'success': False, 'error': f'Ошибка сервера: HTTP {response.status_code}'}
+    except requests.exceptions.Timeout:
+        return {'success': False, 'error': 'Превышено время ожидания. Проверьте доступность сервера'}
+    except requests.exceptions.ConnectionError:
+        return {'success': False, 'error': 'Не удалось подключиться к серверу. Проверьте URL'}
+    except Exception as e:
+        return {'success': False, 'error': f'Ошибка подключения: {str(e)}'}
 
 def fetch_documents_from_1c(url: str, username: str, password: str) -> List[Dict]:
     """Получение документов из 1С УНФ через XDTO"""

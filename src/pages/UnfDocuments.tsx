@@ -108,6 +108,11 @@ export default function UnfDocuments() {
     }
 
     setLoading(true);
+    toast({
+      title: 'Проверка подключения...',
+      description: 'Проверяем логин и пароль 1С УНФ'
+    });
+
     try {
       const response = await fetch(API_URL, {
         method: 'POST',
@@ -121,18 +126,19 @@ export default function UnfDocuments() {
       const data = await response.json();
       if (data.success) {
         toast({
-          title: 'Успешно',
-          description: 'Подключение сохранено'
+          title: '✅ Подключение установлено',
+          description: 'Логин и пароль верны, данные сохранены'
         });
         setShowConnectionDialog(false);
+        setConnectionForm({ url: '', username: '', password: '' });
         loadConnection();
       } else {
         throw new Error(data.error);
       }
     } catch (error: any) {
       toast({
-        title: 'Ошибка',
-        description: error.message || 'Не удалось сохранить подключение',
+        title: '❌ Ошибка подключения',
+        description: error.message || 'Не удалось подключиться к 1С',
         variant: 'destructive'
       });
     } finally {
