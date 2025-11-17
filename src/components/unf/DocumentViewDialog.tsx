@@ -76,12 +76,12 @@ export default function DocumentViewDialog({ open, document, onOpenChange }: Doc
         
         {document && (
           <div className="space-y-4 overflow-auto flex-1">
-            {nomenclatureItems.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Номенклатура</CardTitle>
-                </CardHeader>
-                <CardContent>
+            <Card>
+              <CardHeader>
+                <CardTitle>Номенклатура</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {nomenclatureItems.length > 0 ? (
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -96,19 +96,24 @@ export default function DocumentViewDialog({ open, document, onOpenChange }: Doc
                         <TableRow key={index}>
                           <TableCell>{item.name}</TableCell>
                           <TableCell className="text-right font-mono">{formatNumber(item.quantity)}</TableCell>
-                          <TableCell className="text-right font-mono">{formatNumber(item.price)}</TableCell>
-                          <TableCell className="text-right font-mono">{formatNumber(item.sum)}</TableCell>
+                          <TableCell className="text-right font-mono">{formatNumber(item.price)} ₽</TableCell>
+                          <TableCell className="text-right font-mono">{formatNumber(item.sum)} ₽</TableCell>
                         </TableRow>
                       ))}
                       <TableRow className="font-bold bg-muted/50">
                         <TableCell colSpan={3} className="text-right">Итого:</TableCell>
-                        <TableCell className="text-right font-mono">{formatNumber(totalSum)}</TableCell>
+                        <TableCell className="text-right font-mono">{formatNumber(totalSum)} ₽</TableCell>
                       </TableRow>
                     </TableBody>
                   </Table>
-                </CardContent>
-              </Card>
-            )}
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>Нет данных о номенклатуре</p>
+                    <p className="text-sm mt-2">Нажмите "Данные" для загрузки</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             <Card className="flex-shrink-0">
               <CardHeader>

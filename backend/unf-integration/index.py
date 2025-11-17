@@ -468,13 +468,24 @@ def enrich_document_from_1c(url: str, username: str, password: str, doc_uid: str
         
         order_status_ref = ''
         if 'СостояниеЗаказа' in item and item['СостояниеЗаказа']:
-            order_status_ref = item['СостояниеЗаказа']
+            val = item['СостояниеЗаказа']
+            if isinstance(val, dict) and 'Ref_Key' in val:
+                order_status_ref = val['Ref_Key']
+            elif isinstance(val, str):
+                order_status_ref = val
         
         order_type_ref = ''
         if 'ВидЗаказа' in item and item['ВидЗаказа']:
-            order_type_ref = item['ВидЗаказа']
+            val = item['ВидЗаказа']
+            if isinstance(val, dict) and 'Ref_Key' in val:
+                order_type_ref = val['Ref_Key']
+            elif isinstance(val, str):
+                order_type_ref = val
         
         author_ref = item.get('Автор_Key', '')
+        
+        print(f"[DEBUG] Raw order_status: {item.get('СостояниеЗаказа')}")
+        print(f"[DEBUG] Raw order_type: {item.get('ВидЗаказа')}")
         
         customer_name = ''
         if customer_ref:
@@ -491,10 +502,43 @@ def enrich_document_from_1c(url: str, username: str, password: str, doc_uid: str
             except:
                 pass
         
-        order_status = order_status_ref if isinstance(order_status_ref, str) else ''
-        order_type = order_type_ref if isinstance(order_type_ref, str) else ''
+        order_status = ''
+        if order_status_ref and len(order_status_ref) == 36 and '-' in order_status_ref:
+            try:
+                status_url = f"{url}/odata/standard.odata/Catalog_СостоянияЗаказовПокупателей(guid'{order_status_ref}')"
+                status_resp = requests.get(
+                    status_url,
+                    params={'$format': 'json'},
+                    auth=HTTPBasicAuth(username, password),
+                    timeout=5
+                )
+                if status_resp.status_code == 200:
+                    order_status = status_resp.json().get('Description', '')
+                    print(f"[DEBUG] Order status loaded: {order_status}")
+            except Exception as e:
+                print(f"[DEBUG] Error loading order status: {str(e)}")
+                order_status = order_status_ref
+        else:
+            order_status = order_status_ref
         
-        print(f"[DEBUG] Order status: {order_status}, Order type: {order_type}")
+        order_type = ''
+        if order_type_ref and len(order_type_ref) == 36 and '-' in order_type_ref:
+            try:
+                type_url = f"{url}/odata/standard.odata/Catalog_ВидыЗаказовПокупателей(guid'{order_type_ref}')"
+                type_resp = requests.get(
+                    type_url,
+                    params={'$format': 'json'},
+                    auth=HTTPBasicAuth(username, password),
+                    timeout=5
+                )
+                if type_resp.status_code == 200:
+                    order_type = type_resp.json().get('Description', '')
+                    print(f"[DEBUG] Order type loaded: {order_type}")
+            except Exception as e:
+                print(f"[DEBUG] Error loading order type: {str(e)}")
+                order_type = order_type_ref
+        else:
+            order_type = order_type_ref
         
         author = ''
         if author_ref:
