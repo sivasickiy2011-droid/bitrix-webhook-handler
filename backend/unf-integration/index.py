@@ -100,7 +100,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 
                 if enriched_data:
                     document_json = dict(document.get('document_json', {}) or {})
-                    document_json['Товары'] = enriched_data.get('nomenclature', [])
+                    document_json['Запасы'] = enriched_data.get('nomenclature', [])
                     
                     cur.execute("""
                         UPDATE unf_documents 
@@ -557,7 +557,7 @@ def enrich_document_from_1c(url: str, username: str, password: str, doc_uid: str
         
         nomenclature = []
         try:
-            table_url = f"{url}/odata/standard.odata/Document_ЗаказПокупателя(guid'{doc_uid}')/Товары"
+            table_url = f"{url}/odata/standard.odata/Document_ЗаказПокупателя(guid'{doc_uid}')/Запасы"
             table_resp = requests.get(
                 table_url,
                 params={'$format': 'json'},
@@ -567,10 +567,10 @@ def enrich_document_from_1c(url: str, username: str, password: str, doc_uid: str
             if table_resp.status_code == 200:
                 table_data = table_resp.json()
                 for row in table_data.get('value', []):
-                    nom_ref = row.get('Номенклатура_Key', '')
-                    nom_name = ''
+                    nom_ref = row.get('Номенклатура', '')
+                    nom_name = row.get('Содержание', '')
                     
-                    if nom_ref:
+                    if not nom_name and nom_ref:
                         try:
                             nom_url = f"{url}/odata/standard.odata/Catalog_Номенклатура(guid'{nom_ref}')"
                             nom_resp = requests.get(
@@ -590,7 +590,7 @@ def enrich_document_from_1c(url: str, username: str, password: str, doc_uid: str
                         'price': float(row.get('Цена', 0) or 0),
                         'sum': float(row.get('Сумма', 0) or 0)
                     })
-                print(f"[DEBUG] Loaded {len(nomenclature)} nomenclature items")
+                print(f"[DEBUG] Loaded {len(nomenclature)} nomenclature items from Запасы")
         except Exception as e:
             print(f"Error loading nomenclature: {str(e)}")
         

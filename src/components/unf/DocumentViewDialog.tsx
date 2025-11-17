@@ -40,9 +40,9 @@ export default function DocumentViewDialog({ open, document, onOpenChange }: Doc
   const getNomenclature = () => {
     if (!document?.document_json) return [];
     
-    const items = document.document_json.Товары || [];
+    const items = document.document_json.Запасы || [];
     return items.map((item: any) => ({
-      name: item.name || item.Номенклатура || '-',
+      name: item.name || item.Содержание || item.Номенклатура || '-',
       quantity: item.quantity || item.Количество || 0,
       price: item.price || item.Цена || 0,
       sum: item.sum || item.Сумма || 0
