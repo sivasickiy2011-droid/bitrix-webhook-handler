@@ -21,6 +21,8 @@ interface Document {
   bitrix_deal_id: string | null;
   synced_to_bitrix: boolean;
   document_json?: any;
+  order_status?: string;
+  order_type?: string;
 }
 
 interface DocumentsTableProps {
@@ -73,7 +75,9 @@ export default function DocumentsTable({
               <TableRow>
                 <TableHead>Номер</TableHead>
                 <TableHead>Дата</TableHead>
-                <TableHead>Контрагент</TableHead>
+                <TableHead>Клиент</TableHead>
+                <TableHead>Состояние</TableHead>
+                <TableHead>Вид заказа</TableHead>
                 <TableHead className="text-right">Сумма</TableHead>
                 <TableHead>Битрикс24</TableHead>
                 <TableHead className="text-right">Действия</TableHead>
@@ -85,6 +89,8 @@ export default function DocumentsTable({
                   <TableCell className="font-medium">{doc.document_number}</TableCell>
                   <TableCell>{formatDate(doc.document_date)}</TableCell>
                   <TableCell>{doc.customer_name || '-'}</TableCell>
+                  <TableCell>{doc.order_status || '-'}</TableCell>
+                  <TableCell>{doc.order_type || '-'}</TableCell>
                   <TableCell className="text-right font-mono">
                     {formatSum(doc.document_sum)}
                   </TableCell>

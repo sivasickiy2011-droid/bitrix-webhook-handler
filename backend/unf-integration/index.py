@@ -41,7 +41,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if action == 'list':
                 cur.execute("""
                     SELECT id, document_uid, document_number, document_date, 
-                           document_sum, customer_name, bitrix_deal_id, synced_to_bitrix
+                           document_sum, customer_name, bitrix_deal_id, synced_to_bitrix,
+                           order_status, order_type
                     FROM unf_documents 
                     ORDER BY document_date DESC 
                     LIMIT 100
@@ -163,8 +164,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     cur.execute("""
                         INSERT INTO unf_documents 
                         (connection_id, document_uid, document_number, document_date, 
-                         document_sum, customer_name, document_json)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                         document_sum, customer_name, document_json, order_status, order_type)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ON CONFLICT (document_uid) 
                         DO UPDATE SET 
                             document_number = EXCLUDED.document_number,
@@ -172,6 +173,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                             document_sum = EXCLUDED.document_sum,
                             customer_name = EXCLUDED.customer_name,
                             document_json = EXCLUDED.document_json,
+                            order_status = EXCLUDED.order_status,
+                            order_type = EXCLUDED.order_type,
                             updated_at = CURRENT_TIMESTAMP
                     """, (
                         connection['id'],
@@ -180,7 +183,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                         doc['date'],
                         doc['sum'],
                         doc['customer'],
-                        json.dumps(doc['raw_data'])
+                        json.dumps(doc['raw_data']),
+                        doc.get('order_status', ''),
+                        doc.get('order_type', '')
                     ))
                     saved_count += 1
                 
@@ -360,12 +365,22 @@ def fetch_documents_from_1c(url: str, username: str, password: str, period: str 
             
             for item in data.get('value', []):
                 print(f"[DEBUG] Document item keys: {list(item.keys())}")
+                order_status = ''
+                if 'СостояниеЗаказа' in item:
+                    order_status = str(item.get('СостояниеЗаказа', ''))
+                
+                order_type = ''
+                if 'ВидЗаказа' in item:
+                    order_type = str(item.get('ВидЗаказа', ''))
+                
                 documents.append({
                     'uid': item.get('Ref_Key', ''),
                     'number': item.get('Number', ''),
                     'date': item.get('Date', ''),
                     'sum': float(item.get('СуммаДокумента', 0) or 0),
                     'customer': item.get('Контрагент', ''),
+                    'order_status': order_status,
+                    'order_type': order_type,
                     'raw_data': item
                 })
             

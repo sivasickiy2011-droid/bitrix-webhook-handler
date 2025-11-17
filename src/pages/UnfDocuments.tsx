@@ -20,6 +20,8 @@ interface Document {
   bitrix_deal_id: string | null;
   synced_to_bitrix: boolean;
   document_json?: any;
+  order_status?: string;
+  order_type?: string;
 }
 
 interface Connection {
