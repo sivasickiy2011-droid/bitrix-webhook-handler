@@ -7,6 +7,7 @@ import ConnectionCard from '@/components/unf/ConnectionCard';
 import DocumentsTable from '@/components/unf/DocumentsTable';
 import ConnectionDialog from '@/components/unf/ConnectionDialog';
 import DocumentViewDialog from '@/components/unf/DocumentViewDialog';
+import FieldMappingTab from '@/components/unf/FieldMappingTab';
 import { useUnfConnection } from '@/hooks/useUnfConnection';
 import { useUnfDocuments } from '@/hooks/useUnfDocuments';
 import { useUnfBitrix } from '@/hooks/useUnfBitrix';
@@ -15,6 +16,7 @@ export default function UnfDocuments() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'documents' | 'mapping'>('documents');
 
   const {
     connection,
@@ -178,20 +180,47 @@ export default function UnfDocuments() {
           />
         )}
 
-        <DocumentsTable
-          documents={documents}
-          loading={loading}
-          connection={connection}
-          filters={filters}
-          onFiltersChange={setFilters}
-          onViewDocument={(doc) => viewDocument(doc, setLoading)}
-          onEnrichDocument={(doc) => enrichDocument(doc, setLoading)}
-          onEnrichAllDocuments={() => enrichAllDocuments(setLoading)}
-          onExportDocument={exportDocument}
-          onCreateBitrixDeal={(doc) => createBitrixDeal(doc, setLoading)}
-          onCheckBitrixDeal={(dealId) => checkBitrixDeal(dealId, setLoading)}
-          onSyncWithBitrix={() => syncWithBitrix(setLoading)}
-        />
+        <div className="flex gap-2 border-b">
+          <button
+            onClick={() => setActiveTab('documents')}
+            className={`px-4 py-2 font-medium transition-colors ${
+              activeTab === 'documents'
+                ? 'text-foreground border-b-2 border-primary'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Документы
+          </button>
+          <button
+            onClick={() => setActiveTab('mapping')}
+            className={`px-4 py-2 font-medium transition-colors ${
+              activeTab === 'mapping'
+                ? 'text-foreground border-b-2 border-primary'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Сопоставление полей
+          </button>
+        </div>
+
+        {activeTab === 'documents' && (
+          <DocumentsTable
+            documents={documents}
+            loading={loading}
+            connection={connection}
+            filters={filters}
+            onFiltersChange={setFilters}
+            onViewDocument={(doc) => viewDocument(doc, setLoading)}
+            onEnrichDocument={(doc) => enrichDocument(doc, setLoading)}
+            onEnrichAllDocuments={() => enrichAllDocuments(setLoading)}
+            onExportDocument={exportDocument}
+            onCreateBitrixDeal={(doc) => createBitrixDeal(doc, setLoading)}
+            onCheckBitrixDeal={(dealId) => checkBitrixDeal(dealId, setLoading)}
+            onSyncWithBitrix={() => syncWithBitrix(setLoading)}
+          />
+        )}
+
+        {activeTab === 'mapping' && <FieldMappingTab />}
       </div>
 
       <ConnectionDialog

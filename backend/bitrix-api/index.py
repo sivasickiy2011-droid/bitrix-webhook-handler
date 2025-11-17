@@ -116,6 +116,20 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 
                 return response_json(200, test_result)
             
+            if action == 'get_deal_fields':
+                fields = get_deal_fields(bitrix_webhook_url)
+                
+                if 'error' in fields:
+                    return response_json(400, {
+                        'success': False,
+                        'error': fields['error']
+                    })
+                
+                return response_json(200, {
+                    'success': True,
+                    'fields': fields['fields']
+                })
+            
             if not deal_id:
                 return response_json(400, {
                     'success': False,
@@ -255,6 +269,34 @@ def get_deal_products(webhook_url: str, deal_id: str) -> Dict[str, Any]:
             })
         
         return {'products': products}
+        
+    except Exception as e:
+        return {'error': f'Bitrix24 API error: {str(e)}'}
+
+def get_deal_fields(webhook_url: str) -> Dict[str, Any]:
+    """Get list of available deal fields from Bitrix24"""
+    try:
+        api_url = f"{webhook_url}crm.deal.fields.json"
+        req = urllib.request.Request(api_url)
+        
+        with urllib.request.urlopen(req, timeout=10) as response:
+            result = json.loads(response.read().decode('utf-8'))
+        
+        if 'error' in result:
+            return {'error': f'Bitrix24 error: {result.get("error_description", result["error"])}'}
+        
+        if 'result' not in result:
+            return {'error': 'Invalid Bitrix24 response'}
+        
+        fields = []
+        for field_name, field_data in result['result'].items():
+            fields.append({
+                'name': field_name,
+                'label': field_data.get('title', field_data.get('formLabel', field_name)),
+                'type': field_data.get('type', 'string')
+            })
+        
+        return {'fields': fields}
         
     except Exception as e:
         return {'error': f'Bitrix24 API error: {str(e)}'}

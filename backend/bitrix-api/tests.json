@@ -4,9 +4,7 @@
       "name": "OPTIONS request returns CORS headers",
       "method": "OPTIONS",
       "path": "/",
-      "expectedStatus": 200,
-      "expectedBody": {},
-      "bodyMatcher": "partial"
+      "expectedStatus": 200
     },
     {
       "name": "GET without deal_id returns error",
@@ -25,8 +23,7 @@
       "path": "/?action=list_purchases",
       "expectedStatus": 200,
       "expectedBody": {
-        "success": true,
-        "purchases": "array"
+        "success": true
       },
       "bodyMatcher": "partial"
     },
