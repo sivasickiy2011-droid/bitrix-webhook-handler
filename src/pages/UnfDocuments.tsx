@@ -1,27 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import Icon from '@/components/ui/icon';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
+import ConnectionCard from '@/components/unf/ConnectionCard';
+import DocumentsTable from '@/components/unf/DocumentsTable';
+import ConnectionDialog from '@/components/unf/ConnectionDialog';
+import DocumentViewDialog from '@/components/unf/DocumentViewDialog';
 
 const API_URL = 'https://functions.poehali.dev/e07c8cef-5ce3-4e78-a012-72019f5b752e';
 
@@ -293,38 +278,6 @@ export default function UnfDocuments() {
     }
   };
 
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('ru-RU');
-  };
-
-  const formatSum = (sum: number) => {
-    if (!sum) return '0.00';
-    return new Intl.NumberFormat('ru-RU', {
-      style: 'currency',
-      currency: 'RUB'
-    }).format(sum);
-  };
-
-  const getConnectionStatusBadge = () => {
-    if (!connectionStatus) return null;
-    
-    const statusConfig = {
-      checking: { icon: 'Loader2', text: 'Проверка...', className: 'bg-yellow-500', spinning: true },
-      online: { icon: 'Wifi', text: 'Подключено', className: 'bg-green-500', spinning: false },
-      offline: { icon: 'WifiOff', text: 'Нет связи', className: 'bg-red-500', spinning: false }
-    };
-    
-    const config = statusConfig[connectionStatus];
-    
-    return (
-      <Badge className={`${config.className} text-white gap-2`}>
-        <Icon name={config.icon} size={14} className={config.spinning ? 'animate-spin' : ''} />
-        {config.text}
-      </Badge>
-    );
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -364,175 +317,37 @@ export default function UnfDocuments() {
         </div>
 
         {connection && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Icon name="Database" size={20} />
-                  Подключение: {connection.name}
-                </div>
-                {getConnectionStatusBadge()}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  <div>URL: {connection.url}</div>
-                  <div>Пользователь: {connection.username}</div>
-                </div>
-                {connectionStatus === 'offline' && (
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={checkConnectionStatus}
-                    className="gap-2"
-                  >
-                    <Icon name="RefreshCw" size={16} />
-                    Проверить снова
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <ConnectionCard
+            connection={connection}
+            connectionStatus={connectionStatus}
+            onCheckStatus={checkConnectionStatus}
+          />
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Документы заказов покупателей</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {documents.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <Icon name="FileX" size={48} className="mx-auto mb-4" />
-                <p>Нет документов</p>
-                {connection && (
-                  <p className="text-sm mt-2">Нажмите "Синхронизировать" для загрузки</p>
-                )}
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Номер</TableHead>
-                    <TableHead>Дата</TableHead>
-                    <TableHead>Контрагент</TableHead>
-                    <TableHead className="text-right">Сумма</TableHead>
-                    <TableHead>Битрикс24</TableHead>
-                    <TableHead className="text-right">Действия</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {documents.map((doc) => (
-                    <TableRow key={doc.id} className="cursor-pointer hover:bg-muted/50">
-                      <TableCell className="font-medium">{doc.document_number}</TableCell>
-                      <TableCell>{formatDate(doc.document_date)}</TableCell>
-                      <TableCell>{doc.customer_name || '-'}</TableCell>
-                      <TableCell className="text-right font-mono">
-                        {formatSum(doc.document_sum)}
-                      </TableCell>
-                      <TableCell>
-                        {doc.synced_to_bitrix ? (
-                          <Badge
-                            variant="default"
-                            className="cursor-pointer"
-                            onClick={() => checkBitrixDeal(doc.bitrix_deal_id!)}
-                          >
-                            <Icon name="Check" size={14} className="mr-1" />
-                            ID: {doc.bitrix_deal_id}
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary">Не синхронизировано</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex gap-2 justify-end">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => viewDocument(doc)}
-                          >
-                            <Icon name="Eye" size={16} />
-                          </Button>
-                          {!doc.synced_to_bitrix && (
-                            <Button
-                              size="sm"
-                              onClick={() => createBitrixDeal(doc)}
-                              disabled={loading}
-                            >
-                              <Icon name="Plus" size={16} className="mr-1" />
-                              Создать сделку
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+        <DocumentsTable
+          documents={documents}
+          loading={loading}
+          connection={connection}
+          onViewDocument={viewDocument}
+          onCreateBitrixDeal={createBitrixDeal}
+          onCheckBitrixDeal={checkBitrixDeal}
+        />
       </div>
 
-      <Dialog open={showConnectionDialog} onOpenChange={setShowConnectionDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Подключение к 1С УНФ</DialogTitle>
-            <DialogDescription>
-              Введите данные для подключения к 1С через XDTO (Fresh)
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="url">URL XDTO сервиса</Label>
-              <Input
-                id="url"
-                placeholder="https://your-portal.1cfresh.com/ws/..."
-                value={connectionForm.url}
-                onChange={(e) => setConnectionForm({ ...connectionForm, url: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="username">Логин</Label>
-              <Input
-                id="username"
-                placeholder="Пользователь"
-                value={connectionForm.username}
-                onChange={(e) => setConnectionForm({ ...connectionForm, username: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="password">Пароль</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Пароль"
-                value={connectionForm.password}
-                onChange={(e) => setConnectionForm({ ...connectionForm, password: e.target.value })}
-              />
-            </div>
-            <Button onClick={saveConnection} disabled={loading} className="w-full">
-              {loading ? 'Сохранение...' : 'Сохранить'}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ConnectionDialog
+        open={showConnectionDialog}
+        loading={loading}
+        connectionForm={connectionForm}
+        onOpenChange={setShowConnectionDialog}
+        onFormChange={setConnectionForm}
+        onSave={saveConnection}
+      />
 
-      <Dialog open={showDocumentDialog} onOpenChange={setShowDocumentDialog}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-auto">
-          <DialogHeader>
-            <DialogTitle>Документ {selectedDocument?.document_number}</DialogTitle>
-            <DialogDescription>
-              JSON представление документа из 1С
-            </DialogDescription>
-          </DialogHeader>
-          {selectedDocument && (
-            <pre className="bg-muted p-4 rounded-lg overflow-auto text-xs">
-              {JSON.stringify(selectedDocument.document_json, null, 2)}
-            </pre>
-          )}
-        </DialogContent>
-      </Dialog>
+      <DocumentViewDialog
+        open={showDocumentDialog}
+        document={selectedDocument}
+        onOpenChange={setShowDocumentDialog}
+      />
     </div>
   );
 }
