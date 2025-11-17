@@ -172,6 +172,78 @@ export function useUnfDocuments(toast: any, connection: any) {
     }
   };
 
+  const enrichAllDocuments = async (setLoading: (val: boolean) => void) => {
+    const docsToEnrich = documents.filter(doc => !doc.customer_name || doc.customer_name.length < 10);
+    
+    if (docsToEnrich.length === 0) {
+      toast({
+        title: 'Все данные получены',
+        description: 'Все документы уже содержат полные данные'
+      });
+      return;
+    }
+
+    setLoading(true);
+    toast({
+      title: 'Получение данных...',
+      description: `Обрабатывается ${docsToEnrich.length} документов`
+    });
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const doc of docsToEnrich) {
+      try {
+        const response = await fetch(`${API_URL}?action=enrich_document&id=${doc.id}`);
+        const data = await response.json();
+        
+        if (data.success) {
+          successCount++;
+        } else {
+          errorCount++;
+        }
+      } catch (error) {
+        errorCount++;
+      }
+    }
+
+    loadDocuments(setLoading);
+    
+    toast({
+      title: 'Обогащение завершено',
+      description: `Успешно: ${successCount}, Ошибок: ${errorCount}`,
+      variant: errorCount > 0 ? 'destructive' : 'default'
+    });
+  };
+
+  const exportDocument = (doc: Document) => {
+    const exportData = {
+      Номер: doc.document_number,
+      Дата: doc.document_date,
+      Клиент: doc.customer_name,
+      'Состояние заказа': doc.order_status,
+      'Вид заказа': doc.order_type,
+      Автор: doc.author,
+      'Сумма': doc.document_sum,
+      'ID в Битрикс24': doc.bitrix_deal_id || 'Не синхронизировано',
+      'UUID в 1С': doc.document_uid
+    };
+
+    const jsonStr = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `document_${doc.document_number}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: '✅ Документ выгружен',
+      description: `Файл: document_${doc.document_number}.json`
+    });
+  };
+
   return {
     documents,
     showDocumentDialog,
@@ -187,6 +259,8 @@ export function useUnfDocuments(toast: any, connection: any) {
     syncDocuments,
     viewDocument,
     clearDocuments,
-    enrichDocument
+    enrichDocument,
+    enrichAllDocuments,
+    exportDocument
   };
 }

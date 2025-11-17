@@ -44,7 +44,9 @@ export default function UnfDocuments() {
     syncDocuments,
     viewDocument,
     clearDocuments,
-    enrichDocument
+    enrichDocument,
+    enrichAllDocuments,
+    exportDocument
   } = useUnfDocuments(toast, connection);
 
   const { createBitrixDeal, checkBitrixDeal } = useUnfBitrix(toast, loadDocuments);
@@ -184,6 +186,8 @@ export default function UnfDocuments() {
           onFiltersChange={setFilters}
           onViewDocument={(doc) => viewDocument(doc, setLoading)}
           onEnrichDocument={(doc) => enrichDocument(doc, setLoading)}
+          onEnrichAllDocuments={() => enrichAllDocuments(setLoading)}
+          onExportDocument={exportDocument}
           onCreateBitrixDeal={(doc) => createBitrixDeal(doc, setLoading)}
           onCheckBitrixDeal={(dealId) => checkBitrixDeal(dealId, setLoading)}
         />

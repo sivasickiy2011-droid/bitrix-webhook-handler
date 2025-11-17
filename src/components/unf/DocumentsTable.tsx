@@ -42,6 +42,8 @@ interface DocumentsTableProps {
   onFiltersChange: (filters: Filters) => void;
   onViewDocument: (doc: Document) => void;
   onEnrichDocument: (doc: Document) => void;
+  onEnrichAllDocuments: () => void;
+  onExportDocument: (doc: Document) => void;
   onCreateBitrixDeal: (doc: Document) => void;
   onCheckBitrixDeal: (dealId: string) => void;
 }
@@ -54,6 +56,8 @@ export default function DocumentsTable({
   onFiltersChange,
   onViewDocument,
   onEnrichDocument,
+  onEnrichAllDocuments,
+  onExportDocument,
   onCreateBitrixDeal,
   onCheckBitrixDeal
 }: DocumentsTableProps) {
@@ -79,10 +83,25 @@ export default function DocumentsTable({
     return true;
   });
 
+  const needEnrichCount = documents.filter(doc => !doc.customer_name || doc.customer_name.length < 10).length;
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Документы заказов покупателей</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle>Документы заказов покупателей</CardTitle>
+          {needEnrichCount > 0 && (
+            <Button
+              onClick={onEnrichAllDocuments}
+              disabled={loading}
+              variant="outline"
+              className="gap-2"
+            >
+              <Icon name="Download" size={18} />
+              Получить все данные ({needEnrichCount})
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         <div className="mb-4 grid grid-cols-5 gap-2">
@@ -179,6 +198,14 @@ export default function DocumentsTable({
                         onClick={() => onViewDocument(doc)}
                       >
                         <Icon name="Eye" size={16} />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onExportDocument(doc)}
+                        className="gap-1"
+                      >
+                        <Icon name="FileDown" size={16} />
                       </Button>
                       {(!doc.customer_name || doc.customer_name.length < 10) && (
                         <Button
