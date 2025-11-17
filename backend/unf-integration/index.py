@@ -99,15 +99,20 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 )
                 
                 if enriched_data:
+                    document_json = dict(document.get('document_json', {}) or {})
+                    document_json['Товары'] = enriched_data.get('nomenclature', [])
+                    
                     cur.execute("""
                         UPDATE unf_documents 
-                        SET customer_name = %s, order_status = %s, order_type = %s, author = %s, updated_at = CURRENT_TIMESTAMP
+                        SET customer_name = %s, order_status = %s, order_type = %s, author = %s, 
+                            document_json = %s, updated_at = CURRENT_TIMESTAMP
                         WHERE id = %s
                     """, (
                         enriched_data['customer'],
                         enriched_data['order_status'],
                         enriched_data['order_type'],
                         enriched_data['author'],
+                        json.dumps(document_json),
                         doc_id
                     ))
                     conn.commit()
@@ -457,6 +462,7 @@ def enrich_document_from_1c(url: str, username: str, password: str, doc_uid: str
             return None
             
         item = response.json()
+        print(f"[DEBUG] Document keys: {list(item.keys())}")
         
         customer_ref = item.get('Контрагент_Key', '')
         order_status_ref = item.get('СостояниеЗаказа_Key', '')
@@ -523,11 +529,51 @@ def enrich_document_from_1c(url: str, username: str, password: str, doc_uid: str
             except:
                 pass
         
+        nomenclature = []
+        try:
+            table_url = f"{url}/odata/standard.odata/Document_ЗаказПокупателя(guid'{doc_uid}')/Товары"
+            table_resp = requests.get(
+                table_url,
+                params={'$format': 'json'},
+                auth=HTTPBasicAuth(username, password),
+                timeout=10
+            )
+            if table_resp.status_code == 200:
+                table_data = table_resp.json()
+                for row in table_data.get('value', []):
+                    nom_ref = row.get('Номенклатура_Key', '')
+                    nom_name = ''
+                    
+                    if nom_ref:
+                        try:
+                            nom_url = f"{url}/odata/standard.odata/Catalog_Номенклатура(guid'{nom_ref}')"
+                            nom_resp = requests.get(
+                                nom_url,
+                                params={'$format': 'json'},
+                                auth=HTTPBasicAuth(username, password),
+                                timeout=5
+                            )
+                            if nom_resp.status_code == 200:
+                                nom_name = nom_resp.json().get('Description', '')
+                        except:
+                            pass
+                    
+                    nomenclature.append({
+                        'name': nom_name or nom_ref,
+                        'quantity': float(row.get('Количество', 0) or 0),
+                        'price': float(row.get('Цена', 0) or 0),
+                        'sum': float(row.get('Сумма', 0) or 0)
+                    })
+                print(f"[DEBUG] Loaded {len(nomenclature)} nomenclature items")
+        except Exception as e:
+            print(f"Error loading nomenclature: {str(e)}")
+        
         return {
             'customer': customer_name,
             'order_status': order_status,
             'order_type': order_type,
-            'author': author
+            'author': author,
+            'nomenclature': nomenclature
         }
     except Exception as e:
         print(f"Error enriching document: {str(e)}")

@@ -26,6 +26,8 @@ interface Document {
   synced_to_bitrix: boolean;
   document_json?: any;
   author?: string;
+  order_status?: string;
+  order_type?: string;
 }
 
 interface DocumentViewDialogProps {
@@ -40,10 +42,10 @@ export default function DocumentViewDialog({ open, document, onOpenChange }: Doc
     
     const items = document.document_json.Товары || [];
     return items.map((item: any) => ({
-      name: item.Номенклатура || '-',
-      quantity: item.Количество || 0,
-      price: item.Цена || 0,
-      sum: item.Сумма || 0
+      name: item.name || item.Номенклатура || '-',
+      quantity: item.quantity || item.Количество || 0,
+      price: item.price || item.Цена || 0,
+      sum: item.sum || item.Сумма || 0
     }));
   };
 
@@ -65,7 +67,10 @@ export default function DocumentViewDialog({ open, document, onOpenChange }: Doc
           <DialogTitle>Документ {document?.document_number}</DialogTitle>
           <DialogDescription>
             от {document?.document_date ? new Date(document.document_date).toLocaleDateString('ru-RU') : '-'}
-            {document?.author && ` • Автор: ${document.author}`}
+            {document?.customer_name && ` • ${document.customer_name}`}
+            {document?.order_status && ` • ${document.order_status}`}
+            {document?.order_type && ` • ${document.order_type}`}
+            {document?.author && ` • ${document.author}`}
           </DialogDescription>
         </DialogHeader>
         
