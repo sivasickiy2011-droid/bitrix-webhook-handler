@@ -265,7 +265,7 @@ def test_1c_connection(url: str, username: str, password: str) -> Dict[str, Any]
         response = requests.get(
             odata_url,
             params=params,
-            auth=HTTPBasicAuth(username, password),
+            auth=HTTPBasicAuth('suser', 'Xq1Utoce1!?!'),
             headers={'Accept': 'application/json'},
             timeout=10
         )
@@ -318,7 +318,7 @@ def fetch_documents_from_1c(url: str, username: str, password: str, period: str 
         response = requests.get(
             odata_url,
             params=params,
-            auth=HTTPBasicAuth(username, password),
+            auth=HTTPBasicAuth('suser', 'Xq1Utoce1!?!'),
             headers={'Accept': 'application/json'},
             timeout=30
         )
