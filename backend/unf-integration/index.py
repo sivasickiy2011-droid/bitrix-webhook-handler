@@ -332,8 +332,7 @@ def fetch_documents_from_1c(url: str, username: str, password: str, limit: int =
     params = {
         '$format': 'json',
         '$skip': str(skip_count),
-        '$top': str(limit),
-        '$expand': 'Контрагент,СостояниеЗаказа,ВидЗаказа,Автор'
+        '$top': str(limit)
     }
     
     try:
@@ -345,7 +344,7 @@ def fetch_documents_from_1c(url: str, username: str, password: str, limit: int =
             params=params,
             auth=HTTPBasicAuth(username, password),
             headers={'Accept': 'application/json'},
-            timeout=30
+            timeout=15
         )
         
         print(f"[DEBUG] Response status: {response.status_code}")
@@ -360,39 +359,20 @@ def fetch_documents_from_1c(url: str, username: str, password: str, limit: int =
             for item in data.get('value', []):
                 print(f"[DEBUG] Document item keys: {list(item.keys())}")
                 
-                customer_name = ''
-                if isinstance(item.get('Контрагент'), dict):
-                    customer_name = item['Контрагент'].get('Description', '')
-                elif isinstance(item.get('Контрагент'), str):
-                    customer_name = item.get('Контрагент', '')
-                
-                order_status = ''
-                if isinstance(item.get('СостояниеЗаказа'), dict):
-                    order_status = item['СостояниеЗаказа'].get('Description', '')
-                elif isinstance(item.get('СостояниеЗаказа'), str):
-                    order_status = item.get('СостояниеЗаказа', '')
-                
-                order_type = ''
-                if isinstance(item.get('ВидЗаказа'), dict):
-                    order_type = item['ВидЗаказа'].get('Description', '')
-                elif isinstance(item.get('ВидЗаказа'), str):
-                    order_type = item.get('ВидЗаказа', '')
-                
-                author = ''
-                if isinstance(item.get('Автор'), dict):
-                    author = item['Автор'].get('Description', '')
-                elif isinstance(item.get('Автор'), str):
-                    author = item.get('Автор', '')
+                customer_ref = item.get('Контрагент_Key', '')
+                order_status_ref = item.get('СостояниеЗаказа_Key', '')
+                order_type_ref = item.get('ВидЗаказа_Key', '')
+                author_ref = item.get('Автор_Key', '')
                 
                 documents.append({
                     'uid': item.get('Ref_Key', ''),
                     'number': item.get('Number', ''),
                     'date': item.get('Date', ''),
                     'sum': float(item.get('СуммаДокумента', 0) or 0),
-                    'customer': customer_name,
-                    'order_status': order_status,
-                    'order_type': order_type,
-                    'author': author,
+                    'customer': customer_ref[:8] if customer_ref else 'ID не найден',
+                    'order_status': order_status_ref[:8] if order_status_ref else '-',
+                    'order_type': order_type_ref[:8] if order_type_ref else '-',
+                    'author': author_ref[:8] if author_ref else '-',
                     'raw_data': item
                 })
             
