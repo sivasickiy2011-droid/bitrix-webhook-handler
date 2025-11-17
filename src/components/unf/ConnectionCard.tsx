@@ -14,9 +14,10 @@ interface ConnectionCardProps {
   connection: Connection;
   connectionStatus: 'checking' | 'online' | 'offline' | null;
   onCheckStatus: () => void;
+  onEditConnection: () => void;
 }
 
-export default function ConnectionCard({ connection, connectionStatus, onCheckStatus }: ConnectionCardProps) {
+export default function ConnectionCard({ connection, connectionStatus, onCheckStatus, onEditConnection }: ConnectionCardProps) {
   const getConnectionStatusBadge = () => {
     if (!connectionStatus) return null;
     
@@ -53,17 +54,28 @@ export default function ConnectionCard({ connection, connectionStatus, onCheckSt
             <div>URL: {connection.url}</div>
             <div>Пользователь: {connection.username}</div>
           </div>
-          {connectionStatus === 'offline' && (
+          <div className="flex gap-2">
             <Button 
               size="sm" 
               variant="outline" 
-              onClick={onCheckStatus}
+              onClick={onEditConnection}
               className="gap-2"
             >
-              <Icon name="RefreshCw" size={16} />
-              Проверить снова
+              <Icon name="Edit" size={16} />
+              Изменить
             </Button>
-          )}
+            {connectionStatus === 'offline' && (
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={onCheckStatus}
+                className="gap-2"
+              >
+                <Icon name="RefreshCw" size={16} />
+                Проверить снова
+              </Button>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

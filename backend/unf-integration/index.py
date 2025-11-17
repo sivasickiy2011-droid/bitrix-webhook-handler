@@ -252,6 +252,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 def test_1c_connection(url: str, username: str, password: str) -> Dict[str, Any]:
     """Проверка подключения к 1С УНФ"""
     try:
+        print(f"[DEBUG] Testing connection to: {url}")
         test_request = """<?xml version="1.0" encoding="UTF-8"?>
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" 
                xmlns:xdto="http://www.1c.ru/SSL/IntegrationService">
@@ -270,6 +271,9 @@ def test_1c_connection(url: str, username: str, password: str) -> Dict[str, Any]
             timeout=10
         )
         
+        print(f"[DEBUG] Response status: {response.status_code}")
+        print(f"[DEBUG] Response text: {response.text[:200]}")
+        
         if response.status_code == 200:
             return {'success': True, 'message': 'Connection successful'}
         elif response.status_code == 401:
@@ -279,10 +283,13 @@ def test_1c_connection(url: str, username: str, password: str) -> Dict[str, Any]
         else:
             return {'success': False, 'error': f'Ошибка сервера: HTTP {response.status_code}'}
     except requests.exceptions.Timeout:
+        print(f"[DEBUG] Timeout error")
         return {'success': False, 'error': 'Превышено время ожидания. Проверьте доступность сервера'}
-    except requests.exceptions.ConnectionError:
+    except requests.exceptions.ConnectionError as e:
+        print(f"[DEBUG] Connection error: {str(e)}")
         return {'success': False, 'error': 'Не удалось подключиться к серверу. Проверьте URL'}
     except Exception as e:
+        print(f"[DEBUG] Exception: {str(e)}")
         return {'success': False, 'error': f'Ошибка подключения: {str(e)}'}
 
 def fetch_documents_from_1c(url: str, username: str, password: str) -> List[Dict]:

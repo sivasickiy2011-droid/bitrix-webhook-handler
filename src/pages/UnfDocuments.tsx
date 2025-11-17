@@ -75,15 +75,21 @@ export default function UnfDocuments() {
         setConnectionStatus('online');
       } else {
         setConnectionStatus('offline');
-        toast({
-          title: 'Проблема с подключением',
-          description: data.connection_status?.error || 'Не удалось подключиться к 1С',
-          variant: 'destructive'
-        });
       }
     } catch (error) {
       setConnectionStatus('offline');
       console.error('Error checking connection:', error);
+    }
+  };
+
+  const openEditConnection = () => {
+    if (connection) {
+      setConnectionForm({
+        url: connection.url,
+        username: connection.username,
+        password: ''
+      });
+      setShowConnectionDialog(true);
     }
   };
 
@@ -321,6 +327,7 @@ export default function UnfDocuments() {
             connection={connection}
             connectionStatus={connectionStatus}
             onCheckStatus={checkConnectionStatus}
+            onEditConnection={openEditConnection}
           />
         )}
 
