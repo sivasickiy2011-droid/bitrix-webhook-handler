@@ -434,14 +434,11 @@ def fetch_documents_from_1c(url: str, username: str, password: str, limit: int =
         return []
 
 def enrich_document_from_1c(url: str, username: str, password: str, doc_uid: str) -> Dict:
-    """Получение полных данных документа из 1С УНФ через OData с $expand"""
+    """Получение полных данных документа из 1С УНФ через OData"""
     try:
         odata_url = f"{url}/odata/standard.odata/Document_ЗаказПокупателя(guid'{doc_uid}')"
         
-        params = {
-            '$format': 'json',
-            '$expand': 'Контрагент,СостояниеЗаказа,ВидЗаказа,Автор'
-        }
+        params = {'$format': 'json'}
         
         print(f"[DEBUG] Enriching document: {doc_uid}")
         
@@ -455,34 +452,83 @@ def enrich_document_from_1c(url: str, username: str, password: str, doc_uid: str
         
         print(f"[DEBUG] Enrich response status: {response.status_code}")
         
-        if response.status_code == 200:
-            item = response.json()
-            
-            customer_name = ''
-            if isinstance(item.get('Контрагент'), dict):
-                customer_name = item['Контрагент'].get('Description', '')
-            
-            order_status = ''
-            if isinstance(item.get('СостояниеЗаказа'), dict):
-                order_status = item['СостояниеЗаказа'].get('Description', '')
-            
-            order_type = ''
-            if isinstance(item.get('ВидЗаказа'), dict):
-                order_type = item['ВидЗаказа'].get('Description', '')
-            
-            author = ''
-            if isinstance(item.get('Автор'), dict):
-                author = item['Автор'].get('Description', '')
-            
-            return {
-                'customer': customer_name,
-                'order_status': order_status,
-                'order_type': order_type,
-                'author': author
-            }
-        else:
+        if response.status_code != 200:
             print(f"1C OData enrich error: {response.status_code} - {response.text}")
             return None
+            
+        item = response.json()
+        
+        customer_ref = item.get('Контрагент_Key', '')
+        order_status_ref = item.get('СостояниеЗаказа_Key', '')
+        order_type_ref = item.get('ВидЗаказа_Key', '')
+        author_ref = item.get('Автор_Key', '')
+        
+        customer_name = ''
+        if customer_ref:
+            try:
+                customer_url = f"{url}/odata/standard.odata/Catalog_Контрагенты(guid'{customer_ref}')"
+                customer_resp = requests.get(
+                    customer_url,
+                    params={'$format': 'json'},
+                    auth=HTTPBasicAuth(username, password),
+                    timeout=5
+                )
+                if customer_resp.status_code == 200:
+                    customer_name = customer_resp.json().get('Description', '')
+            except:
+                pass
+        
+        order_status = ''
+        if order_status_ref:
+            try:
+                status_url = f"{url}/odata/standard.odata/Catalog_СостоянияЗаказовПокупателей(guid'{order_status_ref}')"
+                status_resp = requests.get(
+                    status_url,
+                    params={'$format': 'json'},
+                    auth=HTTPBasicAuth(username, password),
+                    timeout=5
+                )
+                if status_resp.status_code == 200:
+                    order_status = status_resp.json().get('Description', '')
+            except:
+                pass
+        
+        order_type = ''
+        if order_type_ref:
+            try:
+                type_url = f"{url}/odata/standard.odata/Catalog_ВидыЗаказовПокупателей(guid'{order_type_ref}')"
+                type_resp = requests.get(
+                    type_url,
+                    params={'$format': 'json'},
+                    auth=HTTPBasicAuth(username, password),
+                    timeout=5
+                )
+                if type_resp.status_code == 200:
+                    order_type = type_resp.json().get('Description', '')
+            except:
+                pass
+        
+        author = ''
+        if author_ref:
+            try:
+                author_url = f"{url}/odata/standard.odata/Catalog_Пользователи(guid'{author_ref}')"
+                author_resp = requests.get(
+                    author_url,
+                    params={'$format': 'json'},
+                    auth=HTTPBasicAuth(username, password),
+                    timeout=5
+                )
+                if author_resp.status_code == 200:
+                    author = author_resp.json().get('Description', '')
+            except:
+                pass
+        
+        return {
+            'customer': customer_name,
+            'order_status': order_status,
+            'order_type': order_type,
+            'author': author
+        }
     except Exception as e:
         print(f"Error enriching document: {str(e)}")
         return None
