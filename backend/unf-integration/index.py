@@ -327,9 +327,13 @@ def fetch_documents_from_1c(url: str, username: str, password: str, period: str 
         
         if response.status_code == 200:
             data = response.json()
+            print(f"[DEBUG] Response JSON keys: {list(data.keys())}")
+            print(f"[DEBUG] Full response: {json.dumps(data, ensure_ascii=False)[:500]}")
+            
             documents = []
             
             for item in data.get('value', []):
+                print(f"[DEBUG] Document item keys: {list(item.keys())}")
                 documents.append({
                     'uid': item.get('Ref_Key', ''),
                     'number': item.get('Number', ''),
