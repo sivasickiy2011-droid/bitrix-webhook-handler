@@ -173,7 +173,12 @@ export function useUnfDocuments(toast: any, connection: any) {
   };
 
   const enrichAllDocuments = async (setLoading: (val: boolean) => void) => {
-    const docsToEnrich = documents.filter(doc => !doc.customer_name || doc.customer_name.length < 10);
+    const docsToEnrich = documents.filter(doc => 
+      !doc.customer_name || 
+      doc.customer_name.length < 3 ||
+      doc.customer_name.includes('-') ||
+      doc.customer_name.length > 36
+    );
     
     if (docsToEnrich.length === 0) {
       toast({

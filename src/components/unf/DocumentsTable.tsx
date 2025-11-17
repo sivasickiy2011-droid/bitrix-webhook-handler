@@ -83,7 +83,12 @@ export default function DocumentsTable({
     return true;
   });
 
-  const needEnrichCount = documents.filter(doc => !doc.customer_name || doc.customer_name.length < 10).length;
+  const needEnrichCount = documents.filter(doc => 
+    !doc.customer_name || 
+    doc.customer_name.length < 3 ||
+    doc.customer_name.includes('-') ||
+    doc.customer_name.length > 36
+  ).length;
 
   return (
     <Card>
@@ -207,7 +212,7 @@ export default function DocumentsTable({
                       >
                         <Icon name="FileDown" size={16} />
                       </Button>
-                      {(!doc.customer_name || doc.customer_name.length < 10) && (
+                      {(!doc.customer_name || doc.customer_name.length < 3 || doc.customer_name.includes('-') || doc.customer_name.length > 36) && (
                         <Button
                           size="sm"
                           variant="outline"
