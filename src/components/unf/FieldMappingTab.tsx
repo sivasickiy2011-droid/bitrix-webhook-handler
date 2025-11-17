@@ -47,10 +47,9 @@ export default function FieldMappingTab() {
   const loadBitrixFields = async () => {
     setLoading(true);
     try {
-      const response = await fetch('https://functions.poehali.dev/9d3bf9b2-8d0d-4e91-b046-0b5dfc1ad42c', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'get_deal_fields' })
+      const response = await fetch('https://functions.poehali.dev/73ea551a-feab-4417-92c3-dd78ca56946b?action=get_deal_fields', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
       });
 
       const data = await response.json();
