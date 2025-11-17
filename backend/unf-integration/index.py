@@ -615,7 +615,9 @@ def create_bitrix_deal(webhook_url: str, document: Dict) -> str:
                 'TITLE': f"Заказ {document['document_number']} от {document['document_date']}",
                 'OPPORTUNITY': float(document['document_sum'] or 0),
                 'CURRENCY_ID': 'RUB',
-                'COMMENTS': f"Документ из 1С УНФ: {document['document_uid']}\nКонтрагент: {document['customer_name']}"
+                'COMMENTS': f"Документ из 1С УНФ: {document['document_uid']}\nКонтрагент: {document['customer_name']}",
+                'UF_CRM_1C_ORDER_NUMBER': document['document_number'],
+                'UF_CRM_1C_ORDER_DATE': document['document_date']
             }
         }
         
@@ -644,6 +646,30 @@ def check_deal_exists(webhook_url: str, deal_id: str) -> bool:
     except Exception as e:
         print(f"Error checking deal: {str(e)}")
         return False
+
+def find_deal_by_1c_order(webhook_url: str, order_number: str, order_date: str) -> str:
+    """Поиск сделки в Битрикс24 по номеру и дате заказа из 1С"""
+    try:
+        url = f"{webhook_url}crm.deal.list.json"
+        
+        data = {
+            'filter': {
+                'UF_CRM_1C_ORDER_NUMBER': order_number,
+                'UF_CRM_1C_ORDER_DATE': order_date
+            },
+            'select': ['ID', 'TITLE', 'UF_CRM_1C_ORDER_NUMBER', 'UF_CRM_1C_ORDER_DATE']
+        }
+        
+        response = requests.post(url, json=data, timeout=10)
+        result = response.json()
+        
+        if result.get('result') and len(result['result']) > 0:
+            return str(result['result'][0]['ID'])
+        else:
+            return None
+    except Exception as e:
+        print(f"Error finding deal by 1C order: {str(e)}")
+        return None
 
 def response_json(status_code: int, data: Dict) -> Dict[str, Any]:
     return {
