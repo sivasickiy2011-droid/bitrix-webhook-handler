@@ -25,6 +25,7 @@ interface Document {
   bitrix_deal_id: string | null;
   synced_to_bitrix: boolean;
   document_json?: any;
+  author?: string;
 }
 
 interface DocumentViewDialogProps {
@@ -59,16 +60,17 @@ export default function DocumentViewDialog({ open, document, onOpenChange }: Doc
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[85vh] overflow-auto">
+      <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Документ {document?.document_number}</DialogTitle>
           <DialogDescription>
             от {document?.document_date ? new Date(document.document_date).toLocaleDateString('ru-RU') : '-'}
+            {document?.author && ` • Автор: ${document.author}`}
           </DialogDescription>
         </DialogHeader>
         
         {document && (
-          <div className="space-y-4">
+          <div className="space-y-4 overflow-auto flex-1">
             {nomenclatureItems.length > 0 && (
               <Card>
                 <CardHeader>
@@ -103,14 +105,14 @@ export default function DocumentViewDialog({ open, document, onOpenChange }: Doc
               </Card>
             )}
 
-            <Card>
+            <Card className="flex-shrink-0">
               <CardHeader>
                 <CardTitle>JSON документа</CardTitle>
               </CardHeader>
               <CardContent>
-                <pre className="bg-muted p-4 rounded-lg overflow-auto text-xs max-h-96">
-                  {JSON.stringify(document.document_json, null, 2)}
-                </pre>
+                <div className="bg-muted p-4 rounded-lg overflow-auto text-xs max-h-96">
+                  <pre>{JSON.stringify(document.document_json, null, 2)}</pre>
+                </div>
               </CardContent>
             </Card>
           </div>

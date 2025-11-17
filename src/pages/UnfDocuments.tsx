@@ -22,6 +22,7 @@ interface Document {
   document_json?: any;
   order_status?: string;
   order_type?: string;
+  author?: string;
 }
 
 interface Connection {
@@ -44,6 +45,13 @@ export default function UnfDocuments() {
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [syncPeriod, setSyncPeriod] = useState<'3days' | 'week' | 'month'>('month');
   const [showPeriodMenu, setShowPeriodMenu] = useState(false);
+  const [filters, setFilters] = useState({
+    number: '',
+    customer: '',
+    status: '',
+    type: '',
+    author: ''
+  });
   
   const [connectionForm, setConnectionForm] = useState({
     url: '',
@@ -441,6 +449,8 @@ export default function UnfDocuments() {
           documents={documents}
           loading={loading}
           connection={connection}
+          filters={filters}
+          onFiltersChange={setFilters}
           onViewDocument={viewDocument}
           onCreateBitrixDeal={createBitrixDeal}
           onCheckBitrixDeal={checkBitrixDeal}

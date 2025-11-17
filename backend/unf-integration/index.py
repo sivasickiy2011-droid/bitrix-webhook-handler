@@ -42,7 +42,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 cur.execute("""
                     SELECT id, document_uid, document_number, document_date, 
                            document_sum, customer_name, bitrix_deal_id, synced_to_bitrix,
-                           order_status, order_type
+                           order_status, order_type, author
                     FROM unf_documents 
                     ORDER BY document_date DESC 
                     LIMIT 100
@@ -164,8 +164,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     cur.execute("""
                         INSERT INTO unf_documents 
                         (connection_id, document_uid, document_number, document_date, 
-                         document_sum, customer_name, document_json, order_status, order_type)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                         document_sum, customer_name, document_json, order_status, order_type, author)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ON CONFLICT (document_uid) 
                         DO UPDATE SET 
                             document_number = EXCLUDED.document_number,
@@ -175,6 +175,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                             document_json = EXCLUDED.document_json,
                             order_status = EXCLUDED.order_status,
                             order_type = EXCLUDED.order_type,
+                            author = EXCLUDED.author,
                             updated_at = CURRENT_TIMESTAMP
                     """, (
                         connection['id'],
@@ -185,7 +186,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                         doc['customer'],
                         json.dumps(doc['raw_data']),
                         doc.get('order_status', ''),
-                        doc.get('order_type', '')
+                        doc.get('order_type', ''),
+                        doc.get('author', '')
                     ))
                     saved_count += 1
                 
@@ -339,7 +341,8 @@ def fetch_documents_from_1c(url: str, username: str, password: str, period: str 
     params = {
         '$format': 'json',
         '$skip': str(skip_count),
-        '$top': '100'
+        '$top': '100',
+        '$expand': 'Контрагент,СостояниеЗаказа,ВидЗаказа,Автор'
     }
     
     try:
@@ -365,22 +368,40 @@ def fetch_documents_from_1c(url: str, username: str, password: str, period: str 
             
             for item in data.get('value', []):
                 print(f"[DEBUG] Document item keys: {list(item.keys())}")
+                
+                customer_name = ''
+                if isinstance(item.get('Контрагент'), dict):
+                    customer_name = item['Контрагент'].get('Description', '')
+                elif isinstance(item.get('Контрагент'), str):
+                    customer_name = item.get('Контрагент', '')
+                
                 order_status = ''
-                if 'СостояниеЗаказа' in item:
-                    order_status = str(item.get('СостояниеЗаказа', ''))
+                if isinstance(item.get('СостояниеЗаказа'), dict):
+                    order_status = item['СостояниеЗаказа'].get('Description', '')
+                elif isinstance(item.get('СостояниеЗаказа'), str):
+                    order_status = item.get('СостояниеЗаказа', '')
                 
                 order_type = ''
-                if 'ВидЗаказа' in item:
-                    order_type = str(item.get('ВидЗаказа', ''))
+                if isinstance(item.get('ВидЗаказа'), dict):
+                    order_type = item['ВидЗаказа'].get('Description', '')
+                elif isinstance(item.get('ВидЗаказа'), str):
+                    order_type = item.get('ВидЗаказа', '')
+                
+                author = ''
+                if isinstance(item.get('Автор'), dict):
+                    author = item['Автор'].get('Description', '')
+                elif isinstance(item.get('Автор'), str):
+                    author = item.get('Автор', '')
                 
                 documents.append({
                     'uid': item.get('Ref_Key', ''),
                     'number': item.get('Number', ''),
                     'date': item.get('Date', ''),
                     'sum': float(item.get('СуммаДокумента', 0) or 0),
-                    'customer': item.get('Контрагент', ''),
+                    'customer': customer_name,
                     'order_status': order_status,
                     'order_type': order_type,
+                    'author': author,
                     'raw_data': item
                 })
             

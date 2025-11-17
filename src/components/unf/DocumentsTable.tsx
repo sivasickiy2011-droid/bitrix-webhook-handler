@@ -23,12 +23,23 @@ interface Document {
   document_json?: any;
   order_status?: string;
   order_type?: string;
+  author?: string;
+}
+
+interface Filters {
+  number: string;
+  customer: string;
+  status: string;
+  type: string;
+  author: string;
 }
 
 interface DocumentsTableProps {
   documents: Document[];
   loading: boolean;
   connection: any;
+  filters: Filters;
+  onFiltersChange: (filters: Filters) => void;
   onViewDocument: (doc: Document) => void;
   onCreateBitrixDeal: (doc: Document) => void;
   onCheckBitrixDeal: (dealId: string) => void;
@@ -38,6 +49,8 @@ export default function DocumentsTable({
   documents,
   loading,
   connection,
+  filters,
+  onFiltersChange,
   onViewDocument,
   onCreateBitrixDeal,
   onCheckBitrixDeal
@@ -55,13 +68,59 @@ export default function DocumentsTable({
     }).format(sum);
   };
 
+  const filteredDocuments = documents.filter(doc => {
+    if (filters.number && !doc.document_number.toLowerCase().includes(filters.number.toLowerCase())) return false;
+    if (filters.customer && !doc.customer_name?.toLowerCase().includes(filters.customer.toLowerCase())) return false;
+    if (filters.status && !doc.order_status?.toLowerCase().includes(filters.status.toLowerCase())) return false;
+    if (filters.type && !doc.order_type?.toLowerCase().includes(filters.type.toLowerCase())) return false;
+    if (filters.author && !doc.author?.toLowerCase().includes(filters.author.toLowerCase())) return false;
+    return true;
+  });
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Документы заказов покупателей</CardTitle>
       </CardHeader>
       <CardContent>
-        {documents.length === 0 ? (
+        <div className="mb-4 grid grid-cols-5 gap-2">
+          <input
+            type="text"
+            placeholder="Номер..."
+            value={filters.number}
+            onChange={(e) => onFiltersChange({ ...filters, number: e.target.value })}
+            className="px-3 py-2 border rounded-md text-sm"
+          />
+          <input
+            type="text"
+            placeholder="Клиент..."
+            value={filters.customer}
+            onChange={(e) => onFiltersChange({ ...filters, customer: e.target.value })}
+            className="px-3 py-2 border rounded-md text-sm"
+          />
+          <input
+            type="text"
+            placeholder="Состояние..."
+            value={filters.status}
+            onChange={(e) => onFiltersChange({ ...filters, status: e.target.value })}
+            className="px-3 py-2 border rounded-md text-sm"
+          />
+          <input
+            type="text"
+            placeholder="Вид заказа..."
+            value={filters.type}
+            onChange={(e) => onFiltersChange({ ...filters, type: e.target.value })}
+            className="px-3 py-2 border rounded-md text-sm"
+          />
+          <input
+            type="text"
+            placeholder="Автор..."
+            value={filters.author}
+            onChange={(e) => onFiltersChange({ ...filters, author: e.target.value })}
+            className="px-3 py-2 border rounded-md text-sm"
+          />
+        </div>
+        {filteredDocuments.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <Icon name="FileX" size={48} className="mx-auto mb-4" />
             <p>Нет документов</p>
@@ -78,19 +137,21 @@ export default function DocumentsTable({
                 <TableHead>Клиент</TableHead>
                 <TableHead>Состояние</TableHead>
                 <TableHead>Вид заказа</TableHead>
+                <TableHead>Автор</TableHead>
                 <TableHead className="text-right">Сумма</TableHead>
                 <TableHead>Битрикс24</TableHead>
                 <TableHead className="text-right">Действия</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {documents.map((doc) => (
+              {filteredDocuments.map((doc) => (
                 <TableRow key={doc.id} className="cursor-pointer hover:bg-muted/50">
                   <TableCell className="font-medium">{doc.document_number}</TableCell>
                   <TableCell>{formatDate(doc.document_date)}</TableCell>
                   <TableCell>{doc.customer_name || '-'}</TableCell>
                   <TableCell>{doc.order_status || '-'}</TableCell>
                   <TableCell>{doc.order_type || '-'}</TableCell>
+                  <TableCell>{doc.author || '-'}</TableCell>
                   <TableCell className="text-right font-mono">
                     {formatSum(doc.document_sum)}
                   </TableCell>
