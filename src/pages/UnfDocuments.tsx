@@ -49,7 +49,7 @@ export default function UnfDocuments() {
     exportDocument
   } = useUnfDocuments(toast, connection);
 
-  const { createBitrixDeal, checkBitrixDeal } = useUnfBitrix(toast, loadDocuments);
+  const { createBitrixDeal, checkBitrixDeal, syncWithBitrix } = useUnfBitrix(toast, loadDocuments);
 
   useEffect(() => {
     loadConnection();
@@ -190,6 +190,7 @@ export default function UnfDocuments() {
           onExportDocument={exportDocument}
           onCreateBitrixDeal={(doc) => createBitrixDeal(doc, setLoading)}
           onCheckBitrixDeal={(dealId) => checkBitrixDeal(dealId, setLoading)}
+          onSyncWithBitrix={() => syncWithBitrix(setLoading)}
         />
       </div>
 

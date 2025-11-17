@@ -80,8 +80,46 @@ export function useUnfBitrix(toast: any, loadDocuments: (setLoading: (val: boole
     }
   };
 
+  const syncWithBitrix = async (setLoading: (val: boolean) => void) => {
+    setLoading(true);
+    toast({
+      title: 'Синхронизация...',
+      description: 'Проверяем сделки в Битрикс24'
+    });
+
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'sync_with_bitrix'
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        toast({
+          title: '✅ Синхронизация завершена',
+          description: data.message
+        });
+        loadDocuments(setLoading);
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Ошибка',
+        description: error.message || 'Не удалось синхронизировать с Битрикс24',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     createBitrixDeal,
-    checkBitrixDeal
+    checkBitrixDeal,
+    syncWithBitrix
   };
 }

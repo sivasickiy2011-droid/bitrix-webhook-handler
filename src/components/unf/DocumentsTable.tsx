@@ -46,6 +46,7 @@ interface DocumentsTableProps {
   onExportDocument: (doc: Document) => void;
   onCreateBitrixDeal: (doc: Document) => void;
   onCheckBitrixDeal: (dealId: string) => void;
+  onSyncWithBitrix: () => void;
 }
 
 export default function DocumentsTable({
@@ -59,7 +60,8 @@ export default function DocumentsTable({
   onEnrichAllDocuments,
   onExportDocument,
   onCreateBitrixDeal,
-  onCheckBitrixDeal
+  onCheckBitrixDeal,
+  onSyncWithBitrix
 }: DocumentsTableProps) {
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '-';
@@ -95,17 +97,28 @@ export default function DocumentsTable({
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>Документы заказов покупателей</CardTitle>
-          {needEnrichCount > 0 && (
+          <div className="flex gap-2">
             <Button
-              onClick={onEnrichAllDocuments}
+              onClick={onSyncWithBitrix}
               disabled={loading}
               variant="outline"
               className="gap-2"
             >
-              <Icon name="Download" size={18} />
-              Получить все данные ({needEnrichCount})
+              <Icon name="RefreshCcw" size={18} />
+              Синхронизировать с Битрикс24
             </Button>
-          )}
+            {needEnrichCount > 0 && (
+              <Button
+                onClick={onEnrichAllDocuments}
+                disabled={loading}
+                variant="outline"
+                className="gap-2"
+              >
+                <Icon name="Download" size={18} />
+                Получить все данные ({needEnrichCount})
+              </Button>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent>

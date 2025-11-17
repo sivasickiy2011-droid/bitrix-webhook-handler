@@ -302,6 +302,42 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     'deal_id': deal_id
                 })
             
+            elif action == 'sync_with_bitrix':
+                bitrix_webhook = os.environ.get('BITRIX24_WEBHOOK_URL', '')
+                if not bitrix_webhook:
+                    return response_json(400, {'success': False, 'error': 'BITRIX24_WEBHOOK_URL not configured'})
+                
+                cur.execute("""
+                    SELECT id, document_number, document_date, bitrix_deal_id
+                    FROM unf_documents
+                    ORDER BY document_date DESC
+                """)
+                documents = cur.fetchall()
+                
+                updated_count = 0
+                for doc in documents:
+                    found_deal_id = find_deal_by_1c_order(
+                        bitrix_webhook,
+                        doc['document_number'],
+                        doc['document_date']
+                    )
+                    
+                    if found_deal_id and found_deal_id != doc['bitrix_deal_id']:
+                        cur.execute("""
+                            UPDATE unf_documents
+                            SET bitrix_deal_id = %s, synced_to_bitrix = true, updated_at = CURRENT_TIMESTAMP
+                            WHERE id = %s
+                        """, (found_deal_id, doc['id']))
+                        updated_count += 1
+                
+                conn.commit()
+                
+                return response_json(200, {
+                    'success': True,
+                    'message': f'Синхронизировано сделок: {updated_count}',
+                    'count': updated_count
+                })
+            
             elif action == 'clear_documents':
                 cur.execute("DELETE FROM unf_documents")
                 deleted_count = cur.rowcount
