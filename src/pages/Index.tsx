@@ -7,13 +7,21 @@ import { useNavigate } from 'react-router-dom';
 
 const API_URL = 'https://functions.poehali.dev/6a844be4-d079-4584-aa51-27ed6b95cb81';
 
-interface Module {
+interface SubModule {
   id: string;
   title: string;
   description: string;
   icon: string;
   path: string;
+}
+
+interface MainModule {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
   color: string;
+  subModules: SubModule[];
 }
 
 export default function Index() {
@@ -21,55 +29,76 @@ export default function Index() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
 
-  const modules: Module[] = [
+  const modules: MainModule[] = [
     {
-      id: 'inn-uniqueness',
-      title: 'Уникальность по ИНН',
-      description: 'Проверка дубликатов компаний по ИНН в Битрикс24',
-      icon: 'ShieldCheck',
-      path: '/inn-uniqueness',
-      color: 'bg-blue-500',
-    },
-    {
-      id: 'contracts',
-      title: 'Договоры',
-      description: 'Управление договорами и контрактами',
-      icon: 'FileSignature',
-      path: '/contracts',
-      color: 'bg-green-500',
-    },
-    {
-      id: 'purchases',
-      title: 'Закупки',
-      description: 'Работа с закупками и заявками',
-      icon: 'ShoppingCart',
-      path: '/purchases',
+      id: '1c',
+      title: '1С',
+      description: 'Интеграция с 1С',
+      icon: 'Database',
       color: 'bg-orange-500',
+      subModules: [
+        {
+          id: 'unf-documents',
+          title: 'Документы в УНФ',
+          description: 'Интеграция документов с УНФ',
+          icon: 'FolderOpen',
+          path: '/unf-documents',
+        },
+        {
+          id: 'contracts',
+          title: 'Договоры',
+          description: 'Управление договорами и контрактами',
+          icon: 'FileSignature',
+          path: '/contracts',
+        },
+        {
+          id: 'purchases',
+          title: 'Закупки',
+          description: 'Работа с закупками и заявками',
+          icon: 'ShoppingCart',
+          path: '/purchases',
+        },
+      ],
     },
     {
-      id: 'unf-documents',
-      title: 'Документы в УНФ',
-      description: 'Интеграция документов с УНФ',
-      icon: 'FolderOpen',
-      path: '/unf-documents',
+      id: 'bitrix24',
+      title: 'Битрикс24',
+      description: 'Интеграция с Битрикс24',
+      icon: 'Briefcase',
+      color: 'bg-blue-500',
+      subModules: [
+        {
+          id: 'inn-uniqueness',
+          title: 'Уникальность по ИНН',
+          description: 'Проверка дубликатов компаний по ИНН',
+          icon: 'ShieldCheck',
+          path: '/inn-uniqueness',
+        },
+        {
+          id: 'bp-logs',
+          title: 'Логи бизнес-процессов',
+          description: 'Мониторинг и отслеживание ошибок БП',
+          icon: 'Activity',
+          path: '/bp-logs',
+        },
+        {
+          id: 'deal-changes',
+          title: 'История сделок',
+          description: 'Отслеживание изменений в сделках',
+          icon: 'History',
+          path: '/deal-changes',
+        },
+      ],
+    },
+    {
+      id: 'amocrm',
+      title: 'amoCRM',
+      description: 'Интеграция с amoCRM',
+      icon: 'Users',
       color: 'bg-purple-500',
-    },
-    {
-      id: 'bp-logs',
-      title: 'Логи бизнес-процессов',
-      description: 'Мониторинг и отслеживание ошибок БП',
-      icon: 'Activity',
-      path: '/bp-logs',
-      color: 'bg-red-500',
-    },
-    {
-      id: 'deal-changes',
-      title: 'История сделок',
-      description: 'Отслеживание изменений в сделках Битрикс24',
-      icon: 'History',
-      path: '/deal-changes',
-      color: 'bg-indigo-500',
+      subModules: [],
     },
   ];
 
@@ -139,26 +168,63 @@ export default function Index() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {modules.map((module) => (
-            <Card
-              key={module.id}
-              className="group cursor-pointer transition-all hover:shadow-xl hover:scale-105 border-2 hover:border-primary"
-              onClick={() => navigate(module.path)}
-            >
-              <CardHeader>
-                <div className="flex items-start gap-4">
-                  <div className={`p-4 ${module.color} rounded-xl shadow-md group-hover:scale-110 transition-transform`}>
-                    <Icon name={module.icon} size={32} className="text-white" />
+            <div key={module.id} className="relative">
+              <Card
+                className="group cursor-pointer transition-all hover:shadow-xl hover:scale-105 border-2 hover:border-primary"
+                onClick={() => setOpenMenu(openMenu === module.id ? null : module.id)}
+              >
+                <CardHeader>
+                  <div className="flex items-center gap-4">
+                    <div className={`p-4 ${module.color} rounded-xl shadow-md group-hover:scale-110 transition-transform`}>
+                      <Icon name={module.icon} size={32} className="text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <CardTitle className="text-2xl mb-1">{module.title}</CardTitle>
+                      <CardDescription className="text-sm">{module.description}</CardDescription>
+                    </div>
+                    <Icon 
+                      name={openMenu === module.id ? "ChevronUp" : "ChevronDown"} 
+                      size={24} 
+                      className="text-muted-foreground group-hover:text-primary transition-all" 
+                    />
                   </div>
-                  <div className="flex-1">
-                    <CardTitle className="text-2xl mb-2">{module.title}</CardTitle>
-                    <CardDescription className="text-base">{module.description}</CardDescription>
-                  </div>
-                  <Icon name="ArrowRight" size={24} className="text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                </CardHeader>
+              </Card>
+
+              {openMenu === module.id && module.subModules.length > 0 && (
+                <div className="absolute top-full mt-2 left-0 right-0 bg-background border-2 rounded-lg shadow-xl z-10 overflow-hidden">
+                  {module.subModules.map((subModule) => (
+                    <div
+                      key={subModule.id}
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-muted cursor-pointer transition-colors border-b last:border-b-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(subModule.path);
+                        setOpenMenu(null);
+                      }}
+                    >
+                      <Icon name={subModule.icon} size={20} className="text-muted-foreground" />
+                      <div className="flex-1">
+                        <div className="font-medium text-sm">{subModule.title}</div>
+                        <div className="text-xs text-muted-foreground">{subModule.description}</div>
+                      </div>
+                      <Icon name="ArrowRight" size={16} className="text-muted-foreground" />
+                    </div>
+                  ))}
                 </div>
-              </CardHeader>
-            </Card>
+              )}
+
+              {openMenu === module.id && module.subModules.length === 0 && (
+                <div className="absolute top-full mt-2 left-0 right-0 bg-background border-2 rounded-lg shadow-xl z-10 overflow-hidden">
+                  <div className="px-4 py-6 text-center text-muted-foreground text-sm">
+                    <Icon name="Construction" size={32} className="mx-auto mb-2 opacity-50" />
+                    <p>В разработке</p>
+                  </div>
+                </div>
+              )}
+            </div>
           ))}
         </div>
       </div>
