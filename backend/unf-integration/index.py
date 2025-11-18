@@ -646,14 +646,20 @@ def create_bitrix_deal(webhook_url: str, document: Dict) -> str:
     try:
         url = f"{webhook_url}crm.deal.add.json"
         
+        doc_date = document['document_date']
+        if hasattr(doc_date, 'strftime'):
+            doc_date_str = doc_date.strftime('%Y-%m-%d')
+        else:
+            doc_date_str = str(doc_date)
+        
         data = {
             'fields': {
-                'TITLE': f"Заказ {document['document_number']} от {document['document_date']}",
+                'TITLE': f"Заказ {document['document_number']} от {doc_date_str}",
                 'OPPORTUNITY': float(document['document_sum'] or 0),
                 'CURRENCY_ID': 'RUB',
-                'COMMENTS': f"Документ из 1С УНФ: {document['document_uid']}\nКонтрагент: {document['customer_name']}",
+                'COMMENTS': f"Документ из 1С УНФ: {document['document_uid']}\nКонтрагент: {document.get('customer_name', '')}",
                 'UF_CRM_1C_ORDER_NUMBER': document['document_number'],
-                'UF_CRM_1C_ORDER_DATE': document['document_date']
+                'UF_CRM_1C_ORDER_DATE': doc_date_str
             }
         }
         
