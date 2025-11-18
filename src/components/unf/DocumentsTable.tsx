@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -63,6 +64,21 @@ export default function DocumentsTable({
   onCheckBitrixDeal,
   onSyncWithBitrix
 }: DocumentsTableProps) {
+  const [hiddenColumns, setHiddenColumns] = useState<{
+    customer: boolean;
+    status: boolean;
+    type: boolean;
+    author: boolean;
+    sum: boolean;
+  }>({
+    customer: false,
+    status: false,
+    type: false,
+    author: false,
+    sum: false
+  });
+  const [showColumnMenu, setShowColumnMenu] = useState(false);
+
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '-';
     return new Date(dateStr).toLocaleDateString('ru-RU');
@@ -74,6 +90,15 @@ export default function DocumentsTable({
       style: 'currency',
       currency: 'RUB'
     }).format(sum);
+  };
+
+  const maskText = (text: string | number) => {
+    const str = String(text);
+    return '•'.repeat(Math.max(5, str.length));
+  };
+
+  const toggleColumn = (column: keyof typeof hiddenColumns) => {
+    setHiddenColumns(prev => ({ ...prev, [column]: !prev[column] }));
   };
 
   const filteredDocuments = documents.filter(doc => {
@@ -98,6 +123,55 @@ export default function DocumentsTable({
         <div className="flex items-center justify-between">
           <CardTitle>Документы заказов покупателей</CardTitle>
           <div className="flex gap-2">
+            <div className="relative">
+              <Button
+                onClick={() => setShowColumnMenu(!showColumnMenu)}
+                variant="outline"
+                className="gap-2"
+              >
+                <Icon name="EyeOff" size={18} />
+                Скрыть столбцы
+              </Button>
+              {showColumnMenu && (
+                <div className="absolute top-full mt-1 right-0 bg-background border rounded-lg shadow-lg z-10 min-w-[200px]">
+                  <button
+                    className="w-full text-left px-4 py-2 hover:bg-muted rounded-t-lg flex items-center justify-between"
+                    onClick={() => toggleColumn('customer')}
+                  >
+                    <span>Клиент</span>
+                    {hiddenColumns.customer && <Icon name="EyeOff" size={16} />}
+                  </button>
+                  <button
+                    className="w-full text-left px-4 py-2 hover:bg-muted flex items-center justify-between"
+                    onClick={() => toggleColumn('status')}
+                  >
+                    <span>Состояние</span>
+                    {hiddenColumns.status && <Icon name="EyeOff" size={16} />}
+                  </button>
+                  <button
+                    className="w-full text-left px-4 py-2 hover:bg-muted flex items-center justify-between"
+                    onClick={() => toggleColumn('type')}
+                  >
+                    <span>Вид заказа</span>
+                    {hiddenColumns.type && <Icon name="EyeOff" size={16} />}
+                  </button>
+                  <button
+                    className="w-full text-left px-4 py-2 hover:bg-muted flex items-center justify-between"
+                    onClick={() => toggleColumn('author')}
+                  >
+                    <span>Автор</span>
+                    {hiddenColumns.author && <Icon name="EyeOff" size={16} />}
+                  </button>
+                  <button
+                    className="w-full text-left px-4 py-2 hover:bg-muted rounded-b-lg flex items-center justify-between"
+                    onClick={() => toggleColumn('sum')}
+                  >
+                    <span>Сумма</span>
+                    {hiddenColumns.sum && <Icon name="EyeOff" size={16} />}
+                  </button>
+                </div>
+              )}
+            </div>
             <Button
               onClick={onSyncWithBitrix}
               disabled={loading}
@@ -187,12 +261,20 @@ export default function DocumentsTable({
                 <TableRow key={doc.id} className="cursor-pointer hover:bg-muted/50">
                   <TableCell className="font-medium">{doc.document_number}</TableCell>
                   <TableCell>{formatDate(doc.document_date)}</TableCell>
-                  <TableCell>{doc.customer_name || '-'}</TableCell>
-                  <TableCell>{doc.order_status || '-'}</TableCell>
-                  <TableCell>{doc.order_type || '-'}</TableCell>
-                  <TableCell>{doc.author || '-'}</TableCell>
+                  <TableCell>
+                    {hiddenColumns.customer ? maskText(doc.customer_name || '-') : (doc.customer_name || '-')}
+                  </TableCell>
+                  <TableCell>
+                    {hiddenColumns.status ? maskText(doc.order_status || '-') : (doc.order_status || '-')}
+                  </TableCell>
+                  <TableCell>
+                    {hiddenColumns.type ? maskText(doc.order_type || '-') : (doc.order_type || '-')}
+                  </TableCell>
+                  <TableCell>
+                    {hiddenColumns.author ? maskText(doc.author || '-') : (doc.author || '-')}
+                  </TableCell>
                   <TableCell className="text-right font-mono">
-                    {formatSum(doc.document_sum)}
+                    {hiddenColumns.sum ? maskText(formatSum(doc.document_sum)) : formatSum(doc.document_sum)}
                   </TableCell>
                   <TableCell>
                     {doc.synced_to_bitrix ? (
