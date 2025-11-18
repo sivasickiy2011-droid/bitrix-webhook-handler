@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
+import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import DealChangesFilters from '@/components/deal-changes/DealChangesFilters';
 import DealChangesTable from '@/components/deal-changes/DealChangesTable';
@@ -16,6 +17,7 @@ import {
 } from '@/components/deal-changes/dealChangesUtils';
 
 export default function DealChanges() {
+  const navigate = useNavigate();
   const [changes, setChanges] = useState<DealChange[]>([]);
   const [loading, setLoading] = useState(false);
   const [enriching, setEnriching] = useState(false);
@@ -175,18 +177,22 @@ export default function DealChanges() {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold text-slate-900">История изменений сделок</h1>
-            <p className="text-slate-600 mt-2">Отслеживание всех изменений в сделках Битрикс24</p>
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={() => window.location.href = '/'} variant="outline">
-              <Icon name="ArrowLeft" size={16} className="mr-2" />
-              На главную
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
+              <Icon name="ArrowLeft" size={24} />
             </Button>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-500 rounded-lg">
+                <Icon name="History" size={32} className="text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-foreground">История изменений сделок</h1>
+                <p className="text-muted-foreground">Отслеживание всех изменений в сделках Битрикс24</p>
+              </div>
+            </div>
           </div>
         </div>
 
