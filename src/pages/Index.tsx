@@ -129,7 +129,7 @@ export default function Index() {
               <Icon name="LayoutDashboard" size={40} className="text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-4xl font-bold text-foreground">Битрикс24 Integration Hub</h1>
+              <h1 className="text-4xl font-bold text-foreground">Integration Hub API</h1>
               <p className="text-muted-foreground text-lg">Автоматизация и управление бизнес-процессами</p>
             </div>
           </div>
